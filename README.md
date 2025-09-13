@@ -1,5 +1,15 @@
 # ![NodeBB](public/images/sm-card.png)
 
+## Team: Null Terminators
+
+**Members:**
+- Alexander Torres Vivaldo (`atorresv`)
+- Sofia Yu (`nihany`)
+- Preeya Kirani (`pkirani`)
+- Jimmy Zhang (`zijianzh`)
+- Samhitha Duggirala (`sduggira`)
+
+
 ![Team Contribution Summary](https://raw.githubusercontent.com/CMU-313/NodeBB/gittogether-svg/activity.svg)
 
 [![Workflow](https://github.com/NodeBB/NodeBB/actions/workflows/test.yaml/badge.svg)](https://github.com/NodeBB/NodeBB/actions/workflows/test.yaml)
