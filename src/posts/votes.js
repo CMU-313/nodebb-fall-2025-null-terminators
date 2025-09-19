@@ -171,10 +171,12 @@ module.exports = function (Posts) {
 		}
 	}
 
-	async function vote(type, unvote, pid, uid, voteStatus) {
+	async function vote(type, pid, uid) {
 		if (utils.isNumber(uid) && parseInt(uid, 10) <= 0) {
 			throw new Error('[[error:not-logged-in]]');
 		}
+		const voteStatus = await Posts.hasVoted(pid, uid);
+		const unvote = voteStatus.upvoted || voteStatus.downvoted;
 		const now = Date.now();
 
 		if (type === 'upvote' && !unvote) {
@@ -206,7 +208,7 @@ module.exports = function (Posts) {
 			downvote: type === 'downvote' && !unvote,
 		};
 	}
-
+	
 	async function fireVoteHook(postData, uid, type, unvote, voteStatus) {
 		let hook = type;
 		let current = voteStatus.upvoted ? 'upvote' : 'downvote';
