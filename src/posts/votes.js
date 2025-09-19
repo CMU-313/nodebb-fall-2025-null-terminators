@@ -120,7 +120,7 @@ module.exports = function (Posts) {
 	async function toggleVote(type, pid, uid) {
 		const voteStatus = await Posts.hasVoted(pid, uid);
 		await unvote(pid, uid, type, voteStatus);
-		return await vote(type, false, pid, uid, voteStatus);
+		return await vote(type, pid, uid);
 	}
 
 	async function unvote(pid, uid, type, voteStatus) {
@@ -137,7 +137,7 @@ module.exports = function (Posts) {
 			return;
 		}
 
-		return await vote(voteStatus.upvoted ? 'downvote' : 'upvote', true, pid, uid, voteStatus);
+		return await vote(voteStatus.upvoted ? 'downvote' : 'upvote', pid, uid);
 	}
 
 	async function checkVoteLimitation(pid, uid, type) {
