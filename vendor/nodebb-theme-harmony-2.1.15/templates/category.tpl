@@ -39,6 +39,9 @@
 </div>
 {{{ end }}}
 
+<li component="sidebar/search" class="nav-item mx-2 search dropstart position-relative" title="[[global:header.search]]" role="menuitem">
+<!-- IMPORT partials/sidebar/search.tpl -->
+</li>
 
 <div class="row flex-fill mt-3">
 	<div class="category d-flex flex-column {{{if widgets.sidebar.length }}}col-lg-9 col-sm-12{{{ else }}}col-lg-12{{{ end }}}">
