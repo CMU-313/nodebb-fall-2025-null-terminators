@@ -22,6 +22,45 @@ const notifications = require('../notifications');
 
 const postsAPI = module.exports;
 
+// --- Anonymous masking helper ---
+async function maskAnonymousIfNeeded(caller, post) {
+	// only mask when the post is flagged anonymous
+	if (!post) {
+		return;
+	}
+	if (typeof post.anonymous === 'undefined') {
+		// This is the #1 cause of "masking didn't run" — the field isn't being fetched on read.
+		console.warn('[anon] post pid=%s missing `anonymous` field in read payload', post.pid);
+		return;
+	}
+	if (!post.anonymous) {
+		console.debug('[anon] post pid=%s anonymous=false; no masking needed', post.pid);
+		return;
+	}
+
+	// owners & moderators can still see identity
+	const selfPost = caller.uid && caller.uid === parseInt(post.uid, 10);
+	const canModerate = await privileges.posts.can('posts:moderate', post.pid, caller.uid);
+	if (selfPost || canModerate) {
+		console.debug('[anon] post pid=%s viewer uid=%s is %s; identity visible',
+			post.pid, caller.uid, selfPost ? 'owner' : 'moderator');
+		return;
+	}
+
+	// hide identifying fields for everyone else
+	console.debug('[anon] MASKING post pid=%s for viewer uid=%s', post.pid, caller.uid);
+	post.uid = 0;
+	delete post.handle;
+	if (post.user) {
+		post.user.uid = 0;
+		post.user.username = 'Anonymous';
+		post.user.userslug = null;
+		post.user.picture = null;
+		post.user.iconText = 'A';
+		post.user.iconBgColor = '#888';
+	}
+}
+
 postsAPI.get = async function (caller, data) {
 	const [userPrivileges, post, voted] = await Promise.all([
 		privileges.posts.get([data.pid], caller.uid),
@@ -41,6 +80,8 @@ postsAPI.get = async function (caller, data) {
 	if (post.deleted && !(userPrivilege.isAdminOrMod || selfPost)) {
 		post.content = '[[topic:post-is-deleted]]';
 	}
+
+	await maskAnonymousIfNeeded(caller, post);
 
 	return post;
 };
@@ -63,7 +104,11 @@ postsAPI.getSummary = async (caller, { pid }) => {
 	}
 
 	const postsData = await posts.getPostSummaryByPids([pid], caller.uid, { stripTags: false });
+	if (!postsData[0] || typeof postsData[0].anonymous === 'undefined') {
+		console.warn('[anon] getSummary pid=%s came back without `anonymous` field; add it to your summary getter', pid);
+	}
 	posts.modifyPostByPrivilege(postsData[0], topicPrivileges);
+	await maskAnonymousIfNeeded(caller, postsData[0]);
 	return postsData[0];
 };
 
@@ -118,6 +163,10 @@ postsAPI.edit = async function (caller, data) {
 	data.uid = caller.uid;
 	data.req = apiHelpers.buildReqObject(caller);
 	data.timestamp = parseInt(data.timestamp, 10) || Date.now();
+	// Pass through anonymous toggle if present
+	if (typeof data.anonymous === 'boolean') {
+		data.anonymous = !!data.anonymous;
+	}
 
 	const editResult = await posts.edit(data);
 	if (editResult.topic.isMainPost) {
@@ -579,6 +628,10 @@ postsAPI.getReplies = async (caller, { pid }) => {
 	postData = postData.filter((postData, index) => postData && postPrivileges[index].read);
 	postData = await user.blocks.filter(uid, postData);
 
+	if (postData.length && typeof postData[0].anonymous === 'undefined') {
+		console.warn('[anon] getReplies parent pid=%s: posts fetched without `anonymous` field; add it to getPostsByPids/post summaries', pid);
+	}
+	await Promise.all(postData.map(p => maskAnonymousIfNeeded(caller, p)));
 	return postData;
 };
 

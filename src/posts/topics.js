@@ -8,8 +8,35 @@ const utils = require('../utils');
 module.exports = function (Posts) {
 	Posts.getPostsFromSet = async function (set, start, stop, uid, reverse) {
 		const pids = await Posts.getPidsFromSet(set, start, stop, reverse);
-		const posts = await Posts.getPostsByPids(pids, uid);
-		return await user.blocks.filter(uid, posts);
+		let posts = await Posts.getPostsByPids(pids, uid);
+
+		// --- Diagnostics: ensure `anonymous` is present on read ---
+		const missing = [];
+		posts.forEach((p) => {
+			if (p && typeof p.anonymous === 'undefined') {
+				missing.push(p.pid);
+			}
+		});
+
+		if (missing.length) {
+			console.warn('[anon] posts.getPostsFromSet: `anonymous` missing on pids =', missing);
+			try {
+				const anonVals = await Posts.getPostsFields(missing, ['anonymous']);
+				// Map pid -> anonymous
+				const map = {};
+				anonVals.forEach((row, i) => {
+					map[missing[i]] = row ? row.anonymous : undefined;
+				});
+				posts = posts.map(p => (
+					p && typeof p.anonymous === 'undefined' ? { ...p, anonymous: map[p.pid] === 'true' || map[p.pid] === true } : p
+				));
+			} catch (e) {
+				console.error('[anon] failed to backfill `anonymous` on read:', e);
+			}
+		}
+
+		posts = await user.blocks.filter(uid, posts);
+		return posts;
 	};
 
 	Posts.isMain = async function (pids) {
@@ -44,8 +71,8 @@ module.exports = function (Posts) {
 			const postIndex = utils.isNumber(indices[index]) ? parseInt(indices[index], 10) + 1 : null;
 
 			if (slug && postIndex) {
-				const index = postIndex === 1 ? '' : `/${postIndex}`;
-				return `/topic/${slug}${index}`;
+				const suffix = postIndex === 1 ? '' : `/${postIndex}`;
+				return `/topic/${slug}${suffix}`;
 			}
 			return null;
 		});
