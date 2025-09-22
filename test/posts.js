@@ -1278,12 +1278,55 @@ describe('Posts\'', async () => {
 
 describe('Posts.filterByDate', () => {
 	// Tests that it returns an array
-	it('should filter pids by date', async () => {
+	it('should return no pids by date with no posts added', async () => {
 		const date = Date.now();
 		const formatted_date = new Date(date).toISOString().slice(0, 10);
 
 		const result = await posts.filterByDate({date: formatted_date});
 		assert(Array.isArray(result));
 		assert(result.length == 0); // No posts should have been posted today
+	});
+
+	it('should return 2 pids by date with 2 posts added', async () => {
+		const post1 = await posts.create({
+			uid: 1,
+			tid: 1,
+			content: 'test post 1',
+			timestamp: Date.now(),
+		});
+		
+		const post2 = await posts.create({
+			uid: 1,
+			tid: 1,
+			content: 'test post 2',
+			timestamp: Date.now(),
+		});
+
+		const post3 = await posts.create({
+			uid: 1,
+			tid: 1,
+			content: 'test post 3',
+			timestamp: Date.now() - 86400000, // 1 day ago
+		});
+		const formatted_date = new Date().toISOString().slice(0, 10);
+		
+		const result = await posts.filterByDate({date: formatted_date});
+		const resultPIDs = result.map(post => post.pid);
+
+		assert(Array.isArray(result));
+		assert(result.length >= 2);
+		// Check that post1 and post 2 are returned
+		assert(resultPIDs.includes(post1.pid));
+		assert(resultPIDs.includes(post2.pid));
+		assert(!resultPIDs.includes(post3.pid)); // post3 should not be included
+	});
+
+	it('should return an error if date is invalid', async () => {
+		const date = Date.now();
+
+		// Date is a number, should be a string in YYYY-MM-DD format
+		assert.rejects(async () => {
+			await posts.filterByDate({date: date});
+		});
 	});
 });
