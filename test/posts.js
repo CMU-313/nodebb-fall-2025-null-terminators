@@ -1274,3 +1274,16 @@ describe('Posts\'', async () => {
 		});
 	});
 });
+
+
+describe('Posts.filterByDate', () => {
+	// Tests that it returns an array
+	it('should filter pids by date', async () => {
+		const date = Date.now();
+		const formatted_date = new Date(date).toISOString().slice(0, 10);
+
+		const result = await posts.filterByDate({date: formatted_date});
+		assert(Array.isArray(result));
+		assert(result.length == 0); // No posts should have been posted today
+	});
+});
