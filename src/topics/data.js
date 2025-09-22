@@ -34,6 +34,7 @@ module.exports = function (Topics) {
 			topics: topics,
 			fields: fields,
 			keys: keys,
+			//visibility: visibility, // Was trying to add visibility here and it failed
 		});
 		result.topics.forEach(topic => modifyTopic(topic, fields));
 		return result.topics;
