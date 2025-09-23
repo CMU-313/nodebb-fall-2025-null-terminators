@@ -17,7 +17,6 @@ module.exports = function (Posts) {
         
 		// Fetch post IDs created within the specified date range
 		const pids = await db.getSortedSetRangeByScore('posts:pid', 0, -1, startTimestamp, endTimestamp);
-		console.log('PIDS:', pids);
 		return Posts.getPostsByPids(pids, uid);
 	};
 };
