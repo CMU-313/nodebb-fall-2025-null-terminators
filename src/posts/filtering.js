@@ -6,7 +6,7 @@ const db = require('../database');
 module.exports = function (Posts) {
 	// Method queries db to get posts created on a specific date
 	Posts.filterByDate = async function ({date, uid}) {
-		// Regex to validate if date is in YYYY-MM-DD format
+		// Regex to validate if date is in YYYY-MM-DD format. Regex source from Copilot
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 			throw new Error('Invalid date format. Use YYYY-MM-DD.');
 		}
@@ -17,6 +17,7 @@ module.exports = function (Posts) {
         
 		// Fetch post IDs created within the specified date range
 		const pids = await db.getSortedSetRangeByScore('posts:pid', 0, -1, startTimestamp, endTimestamp);
+		// Copiliot suggestion
 		return Posts.getPostsByPids(pids, uid);
 	};
 };
