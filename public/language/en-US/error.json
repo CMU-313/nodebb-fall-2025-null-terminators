@@ -247,6 +247,8 @@
     "api.400": "Something was wrong with the request payload you passed in.",
     "api.401": "A valid login session was not found. Please log in and try again.",
     "api.403": "You are not authorised to make this call",
+    "guests-cant-create-restricted-posts": "Guests cannot create posts with restricted visibility",
+    "groups-do-not-exist": "The following groups do not exist: %1",
     "api.404": "Invalid API call",
     "api.426": "HTTPS is required for requests to the write api, please re-send your request via HTTPS",
     "api.429": "You have made too many requests, please try again later",
