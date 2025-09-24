@@ -360,6 +360,47 @@ groupsAPI.rejectInvite = async (caller, { slug, uid }) => {
 	}
 };
 
+groupsAPI.getPostableGroups = async (caller, data) => {
+	const targetUid = data.uid || caller.uid;
+
+	// Validate that the caller can access this information
+	if (targetUid !== caller.uid) {
+		const canViewProfile = await privileges.users.can('users:view', caller.uid, targetUid);
+		if (!canViewProfile) {
+			throw new Error('[[error:no-privileges]]');
+		}
+	}
+
+	// Get all visible groups (non-privilege groups)
+	const allGroups = await groups.getNonPrivilegeGroups('groups:visible:createtime', 0, -1);
+
+	// Filter and format groups for frontend
+	const postableGroups = allGroups
+		.filter(group => group && !groups.isPrivilegeGroup(group.name))
+		.map(group => ({
+			name: group.name,
+			displayName: group.displayName || group.name,
+			slug: group.slug,
+			memberCount: group.memberCount || 0,
+			description: group.description || '',
+		}))
+		.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+	// Add the 'all' option at the beginning
+	return {
+		groups: [
+			{
+				name: 'all',
+				displayName: 'Everyone (Public)',
+				slug: 'all',
+				memberCount: null,
+				description: 'Post will be visible to all users',
+			},
+			...postableGroups,
+		],
+	};
+};
+
 async function isOwner(caller, groupName, throwOnFalse = true) {
 	if (typeof groupName !== 'string') {
 		throw new Error('[[error:invalid-group-name]]');

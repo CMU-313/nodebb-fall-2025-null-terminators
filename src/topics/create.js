@@ -13,6 +13,7 @@ const user = require('../user');
 const activitypub = require('../activitypub');
 const meta = require('../meta');
 const posts = require('../posts');
+const groups = require('../groups');
 const privileges = require('../privileges');
 const categories = require('../categories');
 const translator = require('../translator');
@@ -206,6 +207,12 @@ module.exports = function (Topics) {
 		}
 
 		data.ip = data.req ? data.req.ip : null;
+
+		// Validate visibleTo field for replies (same validation as direct post creation)
+		if (data.visibleTo !== undefined) {
+			data.visibleTo = await validateVisibleToForReply(data.visibleTo, uid);
+		}
+
 		let postData = await posts.create(data);
 		postData = await onNewPost(postData, data);
 
@@ -324,5 +331,28 @@ module.exports = function (Topics) {
 		if (!canReply) {
 			throw new Error('[[error:no-privileges]]');
 		}
+	}
+
+	async function validateVisibleToForReply(visibleTo, uid) {
+		// If reply is public, no validation needed
+		if (!visibleTo || !Array.isArray(visibleTo) || visibleTo.includes('all')) {
+			return ['all'];
+		}
+
+		// Guests can only create public posts
+		if (parseInt(uid, 10) === 0) {
+			throw new Error('[[error:guests-cant-create-restricted-posts]]');
+		}
+
+		// Validate that all specified groups exist
+		const groupsExist = await groups.exists(visibleTo);
+		const invalidGroups = visibleTo.filter((groupName, index) =>
+			groupName !== 'all' && !groupsExist[index]);
+
+		if (invalidGroups.length > 0) {
+			throw new Error(`[[error:groups-do-not-exist, ${invalidGroups.join(', ')}]]`);
+		}
+
+		return visibleTo;
 	}
 };
