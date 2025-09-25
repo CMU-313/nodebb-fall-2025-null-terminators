@@ -2,6 +2,7 @@
 
 const assert = require('assert');
 
+const db = require('../mocks/databasemock');
 const categories = require('../../src/categories');
 const topics = require('../../src/topics');
 const posts = require('../../src/posts');
@@ -27,15 +28,15 @@ describe('Topic Search', () => {
 			description: 'Test category created by testing script',
 		});
 		topic1 = await topics.post({
-			userId: adminUid,
-			categoryId: categoryObj.cid,
+			uid: adminUid,
+			cid: categoryObj.cid,
 			title: 'Welcome!',
 			content: 'The content of test topic',
 		});
 
 		topic2 = await topics.post({
-			userId: adminUid,
-			categoryId: categoryObj.cid,
+			uid: adminUid,
+			cid: categoryObj.cid,
 			title: 'Test Topic Title',
 			content: 'Some more random words to fill the post',
 		});
