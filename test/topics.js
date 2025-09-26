@@ -2517,6 +2517,21 @@ describe('Topic\'s', () => {
 			assert(Array.isArray(result));
 			assert(result.length === 0); // Should be an empty array
 		});
+
+		it('should return array of tids if topics match', async () => {
+			const date = Date.now();
+			const formatted_date = new Date(date).toISOString().slice(0, 10);
+
+			const result = await topics.getTopicsByDate({date: formatted_date});
+			assert(Array.isArray(result));
+			for (const topic of result) {
+				// Confirm that each topic's timestamp matches the requested date
+				const topicTS = topic.timestamp;
+				const topicDate = new Date(topicTS).toISOString().slice(0, 10);
+				assert(topicDate === formatted_date);
+			}
+		});
+
 	});
 });
 
