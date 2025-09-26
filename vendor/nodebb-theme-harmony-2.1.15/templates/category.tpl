@@ -39,9 +39,12 @@
 </div>
 {{{ end }}}
 
-<li component="sidebar/search" class="nav-item mx-2 search dropstart position-relative" title="[[global:header.search]]" role="menuitem">
-<!-- IMPORT partials/sidebar/search.tpl -->
-</li>
+<div class="search-inline d-flex align-items-center">
+	<form action="{config.relative_path}/search" method="get" class="d-flex w-100" role="search">
+		<input name="query" type="search" class="form-control" placeholder="[[global:search]]" aria-label="[[search:type-to-search]]" autocomplete="off" />
+		<button type="submit" class="btn btn-outline-secondary ms-2">[[global:search]]</button>
+	</form>
+</div>
 
 <div class="row flex-fill mt-3">
 	<div class="category d-flex flex-column {{{if widgets.sidebar.length }}}col-lg-9 col-sm-12{{{ else }}}col-lg-12{{{ end }}}">
