@@ -8,8 +8,37 @@ const meta = require('../meta');
 const pagination = require('../pagination');
 const helpers = require('./helpers');
 const privileges = require('../privileges');
+const Posts = require('../posts');
 
 const categoriesController = module.exports;
+
+async function maskTeaserIfAnonymous(req, cat) {
+	if (!cat || !cat.teaser || !cat.teaser.pid || !cat.teaser.user) return false;
+	const row = await Posts.getPostFields(cat.teaser.pid, ['anonymous', 'uid', 'pid']);
+	const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
+	if (!isAnon) return false;
+
+	const isOwner = req.uid && req.uid === parseInt(row.uid, 10);
+	const canModerate = await privileges.posts.can('posts:moderate', row.pid, req.uid);
+	if (isOwner || canModerate) return false;
+
+	const u = cat.teaser.user;
+	u.uid = 0;
+	u.username = 'Anonymous';
+	u.displayname = 'Anonymous';
+	u.userslug = null;
+	u.picture = null;
+	// BOTH camelCase and colon-keyed icon keys
+	u.iconText = 'A';
+	u.iconBgColor = '#888';
+	u['icon:text'] = 'A';
+	u['icon:bgColor'] = '#888';
+	// escaped variants some templates render
+	u['username:escaped'] = 'Anonymous';
+	u['displayname:escaped'] = 'Anonymous';
+	u['userslug:escaped'] = '';
+	return true;
+}
 
 categoriesController.list = async function (req, res) {
 	res.locals.metaTags = [{
@@ -44,12 +73,19 @@ categoriesController.list = async function (req, res) {
 		pagination: pagination.create(page, pageCount, req.query),
 	};
 
-	data.categories.forEach((category) => {
-		if (category) {
-			helpers.trimChildren(category);
-			helpers.setCategoryTeaser(category);
+	
+	await Promise.all(data.categories.map(async (category) => {
+		helpers.trimChildren(category);
+		helpers.setCategoryTeaser(category);
+		await maskTeaserIfAnonymous(req, category);
+
+		if (Array.isArray(category.children) && category.children.length) {
+			await Promise.all(category.children.map(async (child) => {
+				helpers.setCategoryTeaser(child);
+				await maskTeaserIfAnonymous(req, child);
+			}));
 		}
-	});
+	}));
 
 	if (req.originalUrl.startsWith(`${nconf.get('relative_path')}/api/categories`) || req.originalUrl.startsWith(`${nconf.get('relative_path')}/categories`)) {
 		data.title = '[[pages:categories]]';

@@ -53,6 +53,18 @@ define('quickreply', [
 			},
 		});
 
+		// Add "Post anonymously" checkbox (idempotent)
+		const qrContainer = $('[component="topic/quickreply/container"]');
+		if (qrContainer.length && !qrContainer.find('#qr-anon').length) {
+			const anonToggle = $(
+				'<div class="form-check mt-2" id="qr-anon-wrap">' +
+					'<input class="form-check-input" type="checkbox" id="qr-anon">' +
+					'<label class="form-check-label" for="qr-anon">Post anonymously</label>' +
+				'</div>'
+			);
+			qrContainer.find('.quickreply-message').after(anonToggle);
+		}
+
 		let ready = true;
 		components.get('topic/quickreply/button').on('click', function (e) {
 			e.preventDefault();
@@ -61,10 +73,12 @@ define('quickreply', [
 			}
 
 			const replyMsg = components.get('topic/quickreply/text').val();
+			const isAnonymous = $('#qr-anon').is(':checked');
 			const replyData = {
 				tid: ajaxify.data.tid,
 				handle: undefined,
 				content: replyMsg,
+				anonymous: !!isAnonymous,
 			};
 			const replyLen = replyMsg.length;
 			if (replyLen < parseInt(config.minimumPostLength, 10)) {

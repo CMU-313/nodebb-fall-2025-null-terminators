@@ -16,6 +16,8 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
+const Posts = require('../posts');
+const topics = require('../topics');
 
 const categoryController = module.exports;
 
@@ -24,6 +26,57 @@ const relative_path = nconf.get('relative_path');
 const validSorts = [
 	'recently_replied', 'recently_created', 'most_posts', 'most_votes', 'most_views',
 ];
+
+async function maskTopicUsersIfAnonymous(req, topic) {
+	if (!topic) return { maskedMain: false, maskedTeaser: false, maskedLast: false };
+
+	function maskUserBlob(u) {
+		if (!u) return;
+		u.uid = 0;
+		u.username = 'Anonymous';
+		u.displayname = 'Anonymous';
+		u.userslug = null;
+		u.picture = null;
+		// avatar text/color — set both camelCase and colon-keyed keys
+		u.iconText = 'A';
+		u.iconBgColor = '#888';
+		u['icon:text'] = 'A';
+		u['icon:bgColor'] = '#888';
+		// nuke escaped variants many templates render
+		u['username:escaped'] = 'Anonymous';
+		u['displayname:escaped'] = 'Anonymous';
+		u['userslug:escaped'] = '';
+	}
+
+	async function checkAndMaskByPid(pid, userObj) {
+		if (!pid || !userObj) return false;
+		const row = await Posts.getPostFields(pid, ['anonymous', 'uid', 'pid']);
+		const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
+		if (!isAnon) return false;
+
+		const isOwner = req.uid && req.uid === parseInt(row.uid, 10);
+		const canModerate = await privileges.posts.can('posts:moderate', row.pid, req.uid);
+		if (isOwner || canModerate) return false;
+
+		maskUserBlob(userObj);
+		return true;
+	}
+
+	const mainPid = topic.mainPid || null;
+	const teaserPid = topic.teaser && topic.teaser.pid;
+	const lastPid = (topic.lastpost && topic.lastpost.pid) || topic.lastpostPid;
+
+	const maskedMain = await checkAndMaskByPid(mainPid, topic.user);
+	const maskedTeaser = await checkAndMaskByPid(teaserPid, topic.teaser && topic.teaser.user);
+	const maskedLast = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
+
+	if (maskedMain && topic.owner) maskUserBlob(topic.owner);
+	if (maskedTeaser && topic.teaser && topic.teaser['user']) maskUserBlob(topic.teaser['user']);
+	if (topic['teaser:user']) maskUserBlob(topic['teaser:user']);
+	if (topic['lastpost:user']) maskUserBlob(topic['lastpost:user']);
+
+	return { maskedMain, maskedTeaser, maskedLast };
+}
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
@@ -116,6 +169,23 @@ categoryController.get = async function (req, res, next) {
 	}
 
 	categories.modifyTopicsByPrivilege(categoryData.topics, userPrivileges);
+	// Ensure each topic has mainPid so we can check main-post anonymity
+	const tids = (categoryData.topics || []).map(t => t && t.tid).filter(Boolean);
+	if (tids.length) {
+		const mains = await topics.getTopicsFields(tids, ['mainPid']);
+		categoryData.topics.forEach((t, i) => {
+			if (t && !t.mainPid) t.mainPid = mains[i] && mains[i].mainPid;
+		});
+	}
+
+	// Mask author surfaces shown on the tiles
+	const maskResults = await Promise.all((categoryData.topics || []).map(t => maskTopicUsersIfAnonymous(req, t)));
+	console.log('[anon][SSR category] masked summary =',
+		maskResults.map((m, i) => ({
+			tid: categoryData.topics[i] && categoryData.topics[i].tid,
+			main: m.maskedMain, teaser: m.maskedTeaser, last: m.maskedLast,
+		})).filter(x => x.main || x.teaser || x.last));
+
 	categoryData.tagWhitelist = categories.filterTagWhitelist(categoryData.tagWhitelist, userPrivileges.isAdminOrMod);
 
 	const allCategories = [];

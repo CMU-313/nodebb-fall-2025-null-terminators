@@ -14,6 +14,7 @@ const helpers = require('./helpers');
 const pagination = require('../pagination');
 const utils = require('../utils');
 const analytics = require('../analytics');
+const Posts = require('../posts');
 
 const topicsController = module.exports;
 
@@ -21,6 +22,54 @@ const url = nconf.get('url');
 const relative_path = nconf.get('relative_path');
 const upload_url = nconf.get('upload_url');
 const validSorts = ['oldest_to_newest', 'newest_to_oldest', 'most_votes'];
+
+// mask a single post's author for non-owners/mods (works with SSR data)
+async function maskAnonymousPostForViewer(req, post) {
+	if (!post) return;
+
+	// make sure we know if this post is anonymous
+	if (typeof post.anonymous === 'undefined' && post.pid) {
+		try {
+			const anon = await Posts.getPostField(post.pid, 'anonymous');
+			post.anonymous = (anon === true || anon === 'true');
+		} catch (e) { /* optional: console.warn('[anon][SSR topic] failed load', post.pid, e); */ }
+	}
+	if (!post.anonymous) return;
+
+	// owners/mods still see identity
+	const isOwner = req.uid && parseInt(req.uid, 10) === parseInt(post.uid, 10);
+	const canModerate = await privileges.posts.can('posts:moderate', post.pid, req.uid);
+	if (isOwner || canModerate) return;
+
+	// mask everything templates use
+	post.uid = 0;
+	if (post.user) {
+		const u = post.user;
+		u.uid = 0;
+		u.username = 'Anonymous';
+		u.displayname = 'Anonymous'; // many themes use displayname
+		u.userslug = null; // kill profile link
+		u.picture = null; // remove avatar
+		// set BOTH camelCase and colon-keyed icon fields (templates read the colon keys)
+		u.iconText = 'A';
+		u.iconBgColor = '#888';
+		u['icon:text'] = 'A';
+		u['icon:bgColor'] = '#888';
+	}
+}
+
+function maskUserBlob(u) {
+	if (!u) return;
+	u.uid = 0;
+	u.username = 'Anonymous';
+	u.displayname = 'Anonymous';
+	u.userslug = null;
+	u.picture = null;
+	u.iconText = 'A';
+	u.iconBgColor = '#888';
+	u['icon:text'] = 'A';
+	u['icon:bgColor'] = '#888';
+}
 
 topicsController.get = async function getTopic(req, res, next) {
 	const tid = req.params.topic_id;
@@ -90,7 +139,41 @@ topicsController.get = async function getTopic(req, res, next) {
 
 	await topics.getTopicWithPosts(topicData, set, req.uid, start, stop, reverse);
 
+	// apply privilege transforms first
 	topics.modifyPostsByPrivilege(topicData, userPrivileges);
+
+	// MASK: apply to the posts rendered on the page
+	if (Array.isArray(topicData.posts)) {
+		await Promise.all(topicData.posts.map(p => maskAnonymousPostForViewer(req, p)));
+	}
+	if (topicData.mainPost) {
+		await maskAnonymousPostForViewer(req, topicData.mainPost);
+	}
+
+	// MASK: make anonymous posts appear as "Anonymous" for non-owners/mods
+	// you already masked posts above; now also mask the header author if main post is anonymous
+	try {
+		if (topicData.mainPid && topicData.user) {
+			const mainAnon = await Posts.getPostField(topicData.mainPid, 'anonymous');
+			const isAnon = (mainAnon === true || mainAnon === 'true');
+			if (isAnon) {
+				const mainOwnerUid = await Posts.getPostField(topicData.mainPid, 'uid');
+				const isOwner = req.uid && parseInt(req.uid, 10) === parseInt(mainOwnerUid, 10);
+				const canModerate = await privileges.posts.can('posts:moderate', topicData.mainPid, req.uid);
+				if (!isOwner && !canModerate) {
+					maskUserBlob(topicData.user);
+				}
+			}
+		}
+	} catch (e) {
+		// optional: console.warn('[anon][SSR topic] failed to mask header user', e);
+	}
+
+	console.log(
+		'[anon][SSR topic] masked PIDs =',
+		(topicData.posts || []).filter(p => p?.user?.username === 'Anonymous').map(p => p.pid)
+	);
+
 	topicData.tagWhitelist = categories.filterTagWhitelist(topicData.tagWhitelist, userPrivileges.isAdminOrMod);
 
 	topicData.privileges = userPrivileges;
@@ -290,12 +373,22 @@ async function addTags(topicData, req, res, currentPage, postAtIndex) {
 		});
 	}
 
+	let isAnon = false;
 	if (postAtIndex) {
+		if (typeof postAtIndex.anonymous === 'boolean') {
+			isAnon = postAtIndex.anonymous;
+		} else if (postAtIndex.pid) {
+			const anon = await posts.getPostField(postAtIndex.pid, 'anonymous');
+			isAnon = (anon === true || anon === 'true');
+		}
+	}
+	if (postAtIndex && !isAnon && postAtIndex.user && postAtIndex.user.userslug) {
 		res.locals.linkTags.push({
 			rel: 'author',
 			href: `${url}/user/${postAtIndex.user.userslug}`,
 		});
 	}
+
 
 	if (meta.config.activitypubEnabled && postAtIndex) {
 		const { pid } = postAtIndex;

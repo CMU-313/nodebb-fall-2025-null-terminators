@@ -26,6 +26,11 @@ PostObject:
       description: A user identifier
     timestamp:
       type: number
+    anonymous:
+      type: boolean
+      description:
+        True if this post was created anonymously. Non-owners/non-mods should
+        see the author masked in UI/SSR and API responses.
     deleted:
       type: boolean
     upvotes:
@@ -172,6 +177,11 @@ PostDataObject:
           type: string
         timestamp:
           type: number
+        anonymous:
+          type: boolean
+          description:
+            True if this post was created anonymously. Non-owners/non-mods should
+            see the author masked in UI/SSR and API responses.
         votes:
           type: number
         deleted:

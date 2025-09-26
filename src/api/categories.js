@@ -8,10 +8,44 @@ const user = require('../user');
 const groups = require('../groups');
 const privileges = require('../privileges');
 const utils = require('../utils');
+const Posts = require('../posts');
 
 const activitypubApi = require('./activitypub');
 
 const categoriesAPI = module.exports;
+
+// Mask authors shown on a category card if the underlying post was anonymous
+async function maskTopicUsersIfAnonymous(caller, topic) {
+	if (!topic) return { maskedMain: false, maskedTeaser: false, maskedLast: false, reason: 'no-topic' };
+
+	async function checkAndMaskByPid(pid, userObj) {
+		if (!pid || !userObj) return false;
+		const row = await Posts.getPostFields(pid, ['anonymous', 'uid', 'pid']);
+		const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
+		if (!isAnon) return false;
+		const isOwner = caller.uid && caller.uid === parseInt(row.uid, 10);
+		const canModerate = await privileges.posts.can('posts:moderate', row.pid, caller.uid);
+		if (isOwner || canModerate) return false;
+		// mask
+		userObj.uid = 0;
+		userObj.username = 'Anonymous';
+		userObj.userslug = null;
+		userObj.picture = null;
+		userObj.iconText = 'A';
+		userObj.iconBgColor = '#888';
+		return true;
+	}
+
+	const mainPid = topic.mainPid || null;
+	const teaserPid = topic.teaser && topic.teaser.pid;
+	const lastPid = (topic.lastpost && topic.lastpost.pid) || topic.lastpostPid;
+
+	const maskedMain = await checkAndMaskByPid(mainPid, topic.user);
+	const maskedTeaser = await checkAndMaskByPid(teaserPid, topic.teaser && topic.teaser.user);
+	const maskedLast = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
+
+	return { maskedMain, maskedTeaser, maskedLast, reason: (!mainPid && !teaserPid && !lastPid) ? 'no-pids' : undefined };
+}
 
 const hasAdminPrivilege = async (uid, privilege = 'categories') => {
 	const ok = await privileges.admin.can(`admin:${privilege}`, uid);
@@ -140,6 +174,7 @@ categoriesAPI.getTopics = async (caller, data) => {
 
 	start = Math.max(0, start);
 	stop = Math.max(0, stop);
+
 	const result = await categories.getCategoryTopics({
 		uid: caller.uid,
 		cid: data.cid,
@@ -151,10 +186,46 @@ categoriesAPI.getTopics = async (caller, data) => {
 		tag: data.query.tag,
 		targetUid,
 	});
+
+	// Ensure schema-required `topics` always exists
+	result.topics = Array.isArray(result.topics) ? result.topics : [];
+
 	categories.modifyTopicsByPrivilege(result.topics, userPrivileges);
 
-	return { ...result, privileges: userPrivileges };
+	// Ensure each topic has mainPid so we can check the main post
+	const tids = (result.topics || []).map(t => t && t.tid).filter(Boolean);
+	if (tids.length) {
+		const mainRows = await topics.getTopicsFields(tids, ['mainPid']);
+		result.topics.forEach((t, i) => {
+			if (t && !t.mainPid) t.mainPid = mainRows[i] && mainRows[i].mainPid;
+		});
+	}
+
+	// Mask topic owner / teaser / lastpost as needed
+	const maskResults = await Promise.all((result.topics || []).map(t => maskTopicUsersIfAnonymous(caller, t)));
+	console.log(
+		'[anon] categories.getTopics masked summary =',
+		maskResults
+			.map((m, i) => ({
+				tid: result.topics[i] && result.topics[i].tid,
+				main: m.maskedMain,
+				teaser: m.maskedTeaser,
+				last: m.maskedLast,
+				reason: m.reason,
+			}))
+			.filter(x => x.main || x.teaser || x.last)
+	);
+
+	// Return shape that always includes `topics`
+	return {
+		topics: result.topics,
+		topicCount: result.topicCount,
+		nextStart: result.nextStart,
+		tagWhitelist: result.tagWhitelist,
+		privileges: userPrivileges,
+	};
 };
+
 
 categoriesAPI.setWatchState = async (caller, { cid, state, uid }) => {
 	let targetUid = caller.uid;
