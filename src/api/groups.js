@@ -386,18 +386,9 @@ groupsAPI.getPostableGroups = async (caller, data) => {
 		}))
 		.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-	// Add the 'all' option at the beginning
+	// Return only the postable groups (no 'all' option in dropdown)
 	return {
-		groups: [
-			{
-				name: 'all',
-				displayName: 'Everyone (Public)',
-				slug: 'all',
-				memberCount: null,
-				description: 'Post will be visible to all users',
-			},
-			...postableGroups,
-		],
+		groups: postableGroups,
 	};
 };
 
