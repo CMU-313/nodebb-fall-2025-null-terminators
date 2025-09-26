@@ -2506,6 +2506,57 @@ describe('Topic\'s', () => {
 			assert(!score);
 		});
 	});
+
+	describe('Topics.getTopicsByDate', () => {
+		// Test that it returns array of tids and returns empty array if no topics
+		it("should return empty array if no topics' timestamps match", async () => {
+			const date = Date.now() + (24 * 60 * 60 * 1000); // Tomorrow. Copilot suggested
+			const formatted_date = new Date(date).toISOString().slice(0, 10);
+
+			const result = await topics.getTopicsByDate({date: formatted_date});
+			assert(Array.isArray(result));
+			assert(result.length === 0); // Should be an empty array
+		});
+
+		it('should return array of tids if topics match', async () => {
+			const date = Date.now();
+			const formatted_date = new Date(date).toISOString().slice(0, 10);
+
+			const result = await topics.getTopicsByDate({date: formatted_date});
+			assert(Array.isArray(result));
+			for (const topic of result) {
+				// Confirm that each topic's timestamp matches the requested date
+				const topicTS = topic.timestamp;
+				const topicDate = new Date(topicTS).toISOString().slice(0, 10);
+				assert(topicDate === formatted_date);
+			}
+		});
+
+		// Test date and category parameters
+		it('should return array of tids filtered by category if category parameter is provided', async () => {
+			const date = Date.now();
+			const formatted_date = new Date(date).toISOString().slice(0, 10);
+
+			// Create a new category and post a topic in it Copilot suggested
+			const testCategory = await categories.create({ name: 'date-filter-category' });
+			await topics.post({ uid: adminUid, cid: testCategory.cid, title: 'Date Filter Test', content: 'Testing date filter', timestamp: date });
+
+			const result = await topics.getTopicsByDate({date: formatted_date, cid: testCategory.cid});
+			console.log(result);
+			assert(Array.isArray(result));
+			
+			// Confirms that each topic is a match
+			for (const topic of result) {
+				// Confirm that each topic's timestamp matches the requested date
+				const topicTS = topic.timestamp;
+				const topicDate = new Date(topicTS).toISOString().slice(0, 10);
+				assert(topicDate === formatted_date);
+				// Confirm that each topic's category matches the requested category
+				assert(topic.cid === testCategory.cid);
+			}
+		});
+
+	});
 });
 
 describe('Topics\'', async () => {

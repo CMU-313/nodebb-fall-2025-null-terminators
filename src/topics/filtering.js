@@ -1,0 +1,34 @@
+'use strict';
+
+const privileges = require('../privileges');
+const db = require('../database');
+
+module.exports = function (Topics) {
+	Topics.getTopicsByDate = async function ({date, uid, cid}) {
+		// Check for valid date format
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			throw new Error('Invalid date format. Use YYYY-MM-DD.');
+		}
+
+		// Convert date to timestamp range
+		const startTimestamp = new Date(`${date}T00:00:00Z`).getTime();
+		const endTimestamp = new Date(`${date}T23:59:59Z`).getTime();
+
+		// Query DB for topics within the date range
+		let tids = await db.getSortedSetRangeByScore('topics:tid', 0, -1, startTimestamp, endTimestamp);
+
+		// If the category is provided, filter topics by category
+		if (cid) {
+			const categoryTids = await db.getSortedSetMembers(`cid:${cid}:tids`);
+			tids = tids.filter(tid => categoryTids.includes(tid));
+		}
+
+		// Filter by privileges if uid is provided
+		if (uid) {
+			tids = await privileges.topics.filterTids('topics:read', tids, uid);
+		}
+
+		return await Topics.getTopicsByTids(tids);
+
+	};
+};
