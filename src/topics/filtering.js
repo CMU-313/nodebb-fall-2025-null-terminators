@@ -6,6 +6,9 @@ const db = require('../database');
 module.exports = function (Topics) {
 	Topics.getTopicsByDate = async function ({date, uid, cid}) {
 		// Check for valid date format
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+			throw new Error('Invalid date format. Use YYYY-MM-DD.');
+		}
 
 		// Convert date to timestamp range
 		const startTimestamp = new Date(`${date}T00:00:00Z`).getTime();
