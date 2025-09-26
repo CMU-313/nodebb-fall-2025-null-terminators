@@ -23,7 +23,7 @@ module.exports = function (Posts) {
 			visibleTo: data.visibleTo,
 			toPid: data.toPid,
 			timestamp: data.timestamp,
-			contentPreview: data.content?.toString().substring(0, 100) + '...'
+			contentPreview: data.content?.toString().substring(0, 100) + '...',
 		});
 
 		// This is an internal method, consider using Topics.reply instead
@@ -60,7 +60,7 @@ module.exports = function (Posts) {
 			tid: postData.tid,
 			contentLength: postData.content?.length,
 			visibleTo: postData.visibleTo,
-			hasSourceContent: !!postData.sourceContent
+			hasSourceContent: !!postData.sourceContent,
 		});
 
 		if (data.toPid) {
@@ -106,7 +106,7 @@ module.exports = function (Posts) {
 			uid: postData.uid,
 			tid: postData.tid,
 			visibleTo: postData.visibleTo,
-			contentLength: postData.content?.length
+			contentLength: postData.content?.length,
 		});
 
 		await db.setObject(`post:${postData.pid}`, postData);
@@ -136,7 +136,7 @@ module.exports = function (Posts) {
 			uid: result.post.uid,
 			isMain: result.post.isMain,
 			visibleTo: result.post.visibleTo,
-			finalResult: 'SUCCESS'
+			finalResult: 'SUCCESS',
 		});
 
 		plugins.hooks.fire('action:post.save', { post: { ...result.post, _activitypub } });

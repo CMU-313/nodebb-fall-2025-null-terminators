@@ -90,7 +90,7 @@ module.exports = function (Topics) {
 			visibleTo: data.visibleTo,
 			tags: data.tags?.length || 0,
 			fromQueue: data.fromQueue,
-			contentPreview: data.content?.substring(0, 100) + '...'
+			contentPreview: data.content?.substring(0, 100) + '...',
 		});
 
 		data = await plugins.hooks.fire('filter:topic.post', data);
@@ -153,7 +153,7 @@ module.exports = function (Topics) {
 			uid: postData.uid,
 			isMain: postData.isMain,
 			hasContent: !!postData.content,
-			visibleTo: postData.visibleTo
+			visibleTo: postData.visibleTo,
 		});
 
 		postData = await posts.create(postData);
@@ -214,7 +214,7 @@ module.exports = function (Topics) {
 			visibleTo: data.visibleTo,
 			toPid: data.toPid,
 			fromQueue: data.fromQueue,
-			contentPreview: data.content?.substring(0, 100) + '...'
+			contentPreview: data.content?.substring(0, 100) + '...',
 		});
 
 		data = await plugins.hooks.fire('filter:topic.reply', data);
@@ -282,7 +282,7 @@ module.exports = function (Topics) {
 			uid: data.uid,
 			hasContent: !!data.content,
 			visibleTo: data.visibleTo,
-			toPid: data.toPid
+			toPid: data.toPid,
 		});
 
 		let postData = await posts.create(data);

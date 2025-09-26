@@ -49,7 +49,7 @@ exports.post = async function (req, res) {
 		hasVisibleTo: !!req.body.visibleTo,
 		visibleToValue: req.body.visibleTo,
 		url: req.url,
-		method: req.method
+		method: req.method,
 	});
 
 	const { body } = req;
@@ -100,7 +100,7 @@ exports.post = async function (req, res) {
 				uid: data.uid,
 				hasContent: !!data.content,
 				visibleTo: data.visibleTo,
-				contentPreview: data.content?.substring(0, 100) + '...'
+				contentPreview: data.content?.substring(0, 100) + '...',
 			});
 			result = await queueOrPost(topics.reply, data);
 		} else if (body.cid) {
@@ -114,7 +114,7 @@ exports.post = async function (req, res) {
 				uid: data.uid,
 				hasContent: !!data.content,
 				visibleTo: data.visibleTo,
-				contentPreview: data.content?.substring(0, 100) + '...'
+				contentPreview: data.content?.substring(0, 100) + '...',
 			});
 			result = await queueOrPost(topics.post, data);
 		} else {
@@ -135,7 +135,7 @@ exports.post = async function (req, res) {
 			pid: result.pid,
 			tid: result.topicData?.tid,
 			slug: result.topicData?.slug,
-			queued: false
+			queued: false,
 		});
 
 		user.updateOnlineUsers(req.uid);
@@ -150,7 +150,7 @@ exports.post = async function (req, res) {
 	} catch (err) {
 		console.error('[API-CONTROLLER] ❌ Error processing request:', {
 			error: err.message,
-			stack: err.stack?.substring(0, 500) + '...'
+			stack: err.stack?.substring(0, 500) + '...',
 		});
 		helpers.noScriptErrors(req, res, err.message, 400);
 	}

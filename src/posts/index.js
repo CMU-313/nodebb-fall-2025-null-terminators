@@ -95,7 +95,7 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 		userGroups = userGroups[0] || [];
 
 		// Extract group names from group objects (some groups return objects, others strings)
-		userGroups = userGroups.map(group => {
+		userGroups = userGroups.map((group) => {
 			if (typeof group === 'object' && group.name) {
 				return group.name;
 			}

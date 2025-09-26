@@ -355,7 +355,7 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 
 	// Create a map of pid -> visibleTo for quick lookup
 	const pidToVisibility = {};
-	mainPosts.forEach(post => {
+	mainPosts.forEach((post) => {
 		if (post && post.pid) {
 			pidToVisibility[post.pid] = post.visibleTo;
 		}
