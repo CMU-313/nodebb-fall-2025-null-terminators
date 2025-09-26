@@ -99,4 +99,11 @@ describe('Topic Search', () => {
 		assert.strictEqual(count, 1);
 	});
 
+	it('should return topics with the most recent first', async function () {
+		const topicsFound = await topics.searchInCategory(' ', categoryObj.cid, adminUid);
+		const tids = topicsFound.map(t => parseInt(t.tid, 10));
+		// Used ChatGPT to figure out that need to use deepStrictEqual
+		assert.deepStrictEqual(tids, [topic3.topicData.tid, topic2.topicData.tid, topic1.topicData.tid]);
+	});
+
 });

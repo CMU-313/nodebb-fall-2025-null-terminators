@@ -40,6 +40,8 @@ module.exports = function (Topics) {
 		// Return topics for found TIDs
 		const topics = await Topics.getTopicsByTids([...resultTids], uid);
 
+		topics.sort((a, b) => b.timestamp - a.timestamp);
+
 		return topics;
 
 	};
