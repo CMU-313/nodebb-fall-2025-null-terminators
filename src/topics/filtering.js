@@ -1,6 +1,6 @@
 'use strict';
 
-const { privileges } = require('../controllers/admin');
+const privileges = require('../privileges');
 const db = require('../database');
 
 module.exports = function (Topics) {
@@ -19,7 +19,7 @@ module.exports = function (Topics) {
 
 		// If the category is provided, filter topics by category
 		if (cid) {
-			const categoryTids = db.getSortedSetMembers(`cid:${cid}:tids`);
+			const categoryTids = await db.getSortedSetMembers(`cid:${cid}:tids`);
 			tids = tids.filter(tid => categoryTids.includes(tid));
 		}
 
