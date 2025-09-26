@@ -1,6 +1,6 @@
 'use strict';
 
-const db = require('../database');
+const db = require('../../database');
 
 module.exports = {
 	name: 'Add anonymous=false to all posts that lack it',

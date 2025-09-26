@@ -174,6 +174,7 @@ categoriesAPI.getTopics = async (caller, data) => {
 
 	start = Math.max(0, start);
 	stop = Math.max(0, stop);
+
 	const result = await categories.getCategoryTopics({
 		uid: caller.uid,
 		cid: data.cid,
@@ -185,6 +186,10 @@ categoriesAPI.getTopics = async (caller, data) => {
 		tag: data.query.tag,
 		targetUid,
 	});
+
+	// Ensure schema-required `topics` always exists
+	result.topics = Array.isArray(result.topics) ? result.topics : [];
+
 	categories.modifyTopicsByPrivilege(result.topics, userPrivileges);
 
 	// Ensure each topic has mainPid so we can check the main post
@@ -198,12 +203,29 @@ categoriesAPI.getTopics = async (caller, data) => {
 
 	// Mask topic owner / teaser / lastpost as needed
 	const maskResults = await Promise.all((result.topics || []).map(t => maskTopicUsersIfAnonymous(caller, t)));
-	console.log('[anon] categories.getTopics masked summary =',
-		maskResults.map((m, i) => ({
-			tid: result.topics[i] && result.topics[i].tid,
-			main: m.maskedMain, teaser: m.maskedTeaser, last: m.maskedLast, reason: m.reason,
-		})).filter(x => x.main || x.teaser || x.last));
+	console.log(
+		'[anon] categories.getTopics masked summary =',
+		maskResults
+			.map((m, i) => ({
+				tid: result.topics[i] && result.topics[i].tid,
+				main: m.maskedMain,
+				teaser: m.maskedTeaser,
+				last: m.maskedLast,
+				reason: m.reason,
+			}))
+			.filter(x => x.main || x.teaser || x.last)
+	);
+
+	// Return shape that always includes `topics`
+	return {
+		topics: result.topics,
+		topicCount: result.topicCount,
+		nextStart: result.nextStart,
+		tagWhitelist: result.tagWhitelist,
+		privileges: userPrivileges,
+	};
 };
+
 
 categoriesAPI.setWatchState = async (caller, { cid, state, uid }) => {
 	let targetUid = caller.uid;
