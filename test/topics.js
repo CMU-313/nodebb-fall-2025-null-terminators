@@ -2506,6 +2506,18 @@ describe('Topic\'s', () => {
 			assert(!score);
 		});
 	});
+
+	describe('Topics.getTopicsByDate', () => {
+		// Test that it returns array of tids and returns empty array if no topics
+		it("should return empty array if no topics' timestamps match", async () => {
+			const date = Date.now() + (24 * 60 * 60 * 1000); // Tomorrow. Copilot suggested
+			const formatted_date = new Date(date).toISOString().slice(0, 10);
+
+			const result = await topics.getTopicsByDate({date: formatted_date});
+			assert(Array.isArray(result));
+			assert(result.length === 0); // Should be an empty array
+		});
+	});
 });
 
 describe('Topics\'', async () => {
