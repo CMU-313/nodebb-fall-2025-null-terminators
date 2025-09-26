@@ -73,19 +73,19 @@ categoriesController.list = async function (req, res) {
 		pagination: pagination.create(page, pageCount, req.query),
 	};
 
-	for (const category of data.categories) {
+	
+	await Promise.all(data.categories.map(async (category) => {
 		helpers.trimChildren(category);
 		helpers.setCategoryTeaser(category);
 		await maskTeaserIfAnonymous(req, category);
 
-		// If you also want to mask child category teasers:
-		if (Array.isArray(category.children)) {
-			for (const child of category.children) {
+		if (Array.isArray(category.children) && category.children.length) {
+			await Promise.all(category.children.map(async (child) => {
 				helpers.setCategoryTeaser(child);
 				await maskTeaserIfAnonymous(req, child);
-			}
+			}));
 		}
-	}
+	}));
 
 	if (req.originalUrl.startsWith(`${nconf.get('relative_path')}/api/categories`) || req.originalUrl.startsWith(`${nconf.get('relative_path')}/categories`)) {
 		data.title = '[[pages:categories]]';
