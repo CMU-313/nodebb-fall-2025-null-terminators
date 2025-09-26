@@ -13,15 +13,16 @@ const helpers = require('../helpers');
 describe('Topic Search', () => {
 	let topic1;
 	let topic2;
+	let topic3;
 	let categoryObj;
 	let adminUid;
 	let fooUid;
 
 	before(async () => {
 		adminUid = await User.create({ username: 'admin', password: '123456' });
-		fooUid = await User.create({ username: 'foo' });
+		fooUid = await User.create({ username: 'foo', password: 'foofoofoo' });
 		await groups.join('administrators', adminUid);
-		const adminLogin = await helpers.loginUser('admin', '123456');
+		await helpers.loginUser('admin', '123456');
 
 		categoryObj = await categories.create({
 			name: 'Test Category',
@@ -39,6 +40,14 @@ describe('Topic Search', () => {
 			cid: categoryObj.cid,
 			title: 'Test Topic Title',
 			content: 'Some more random words to fill the test post',
+		});
+
+		await helpers.loginUser('foo', 'foofoofoo');
+		topic3 = await topics.post({
+			uid: fooUid,
+			cid: categoryObj.cid,
+			title: 'One More',
+			content: 'This is very fun!',
 		});
 	});
 
@@ -58,6 +67,13 @@ describe('Topic Search', () => {
 		const topicsFound = await topics.searchInCategory('content', categoryObj.cid, adminUid);
 		const tids = topicsFound.map(t => parseInt(t.tid, 10));
 		assert(tids.includes(topic1.topicData.tid));
+	});
+
+	it('should find topic by search term in post author', async function () {
+		const topicsFound = await topics.searchInCategory('foo', categoryObj.cid, adminUid);
+		const tids = topicsFound.map(t => parseInt(t.tid, 10));
+		assert(topicsFound.length, 1);
+		assert(tids.includes(topic3.topicData.tid));
 	});
 
 	it('should not include unrelated topics', async function () {

@@ -2,6 +2,7 @@
 
 const db = require('../database');
 const posts = require('../posts');
+const user = require('../user');
 
 module.exports = function (Topics) {
 	Topics.searchInCategory = async function (searchTerm, cid, uid) {
@@ -13,24 +14,32 @@ module.exports = function (Topics) {
 
 		const topicsData = await Topics.getTopicsFields(tids, ['tid', 'title', 'uid']);
 
-		// Check topic data for search term
+		// Find topics where topic data matches search term
 		topicsData.forEach((topic) => {
-			if (topic && topic.title && topic.title.toLowerCase().includes(searchTerm)) {
+			if (topic.title.toLowerCase().includes(searchTerm)) {
 				resultTids.add(topic.tid);
 			}
 		});
 
-		// Check associated posts for search term
+		// Find topics where associated posts' content or author matches search term
 		const pids = await db.getSortedSetRange(`cid:${cid}:pids`, 0, -1);
-		const postData = await posts.getPostsFields(pids, ['pid', 'tid', 'content']);
+		const postData = await posts.getPostsFields(pids, ['pid', 'tid', 'content', 'uid']);
 
-		postData.forEach((post) => {
-			if (post && post.content && post.content.toLowerCase().includes(searchTerm)) {
+		// postData.forEach(async (post) => {
+		for (const post of postData) {
+			// Get post author username
+			// eslint-disable-next-line no-await-in-loop
+			const author = await user.getUserField(post.uid, 'username');
+
+			// Check post's content & username
+			if (post.content.toLowerCase().includes(searchTerm) || author.toLowerCase().includes(searchTerm)) {
 				resultTids.add(post.tid);
 			}
-		});
+		};
 
+		// Return topics for found TIDs
 		const topics = await Topics.getTopicsByTids([...resultTids], uid);
+
 		return topics;
 
 	};
