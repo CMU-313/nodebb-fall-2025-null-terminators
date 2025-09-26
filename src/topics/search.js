@@ -9,7 +9,7 @@ module.exports = function (Topics) {
 
 		const tids = await db.getSortedSetRange(`cid:${cid}:tids`, 0, -1);
 
-		const resultTids = [];
+		const resultTids = new Set();
 
 		const topicsData = await Topics.getTopicsFields(tids, ['tid', 'title', 'uid']);
 
@@ -30,7 +30,7 @@ module.exports = function (Topics) {
 			}
 		});
 
-		const topics = await Topics.getTopicsByTids(resultTids, uid);
+		const topics = await Topics.getTopicsByTids([...resultTids], uid);
 		return topics;
 
 	};

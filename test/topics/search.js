@@ -31,14 +31,14 @@ describe('Topic Search', () => {
 			uid: adminUid,
 			cid: categoryObj.cid,
 			title: 'Welcome!',
-			content: 'The content of test topic',
+			content: 'The content of the topic',
 		});
 
 		topic2 = await topics.post({
 			uid: adminUid,
 			cid: categoryObj.cid,
 			title: 'Test Topic Title',
-			content: 'Some more random words to fill the post',
+			content: 'Some more random words to fill the test post',
 		});
 	});
 
@@ -67,8 +67,20 @@ describe('Topic Search', () => {
 	});
 
 	it('should return empty array if no match is found', async function () {
-		const topicsFound = await topics.searchInCategory('nonexistentkeyword', categoryObj.cid, adminUid);
+		const topicsFound = await topics.searchInCategory('nonexistentterm', categoryObj.cid, adminUid);
 		assert.strictEqual(topicsFound.length, 0);
+	});
+
+	it('should return empty array if no match is found', async function () {
+		const topicsFound = await topics.searchInCategory('nonexistentterm', categoryObj.cid, adminUid);
+		assert.strictEqual(topicsFound.length, 0);
+	});
+
+	it('should not return duplicate topics if multiple search criteria are matched', async function () {
+		// search term test is included in the title and content for topic2
+		const topicsFound = await topics.searchInCategory('test', categoryObj.cid, adminUid);
+		const count = topicsFound.filter(t => t.tid == topic2.topicData.tid).length;
+		assert.strictEqual(count, 1);
 	});
 
 });
