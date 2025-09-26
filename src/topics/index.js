@@ -28,6 +28,7 @@ require('./posts')(Topics);
 require('./follow')(Topics);
 require('./tags')(Topics);
 require('./teaser')(Topics);
+require('./search')(Topics);
 Topics.scheduled = require('./scheduled');
 require('./suggested')(Topics);
 require('./tools')(Topics);
