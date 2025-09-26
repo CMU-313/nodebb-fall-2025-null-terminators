@@ -13,6 +13,7 @@ const user = require('../user');
 const activitypub = require('../activitypub');
 const meta = require('../meta');
 const posts = require('../posts');
+const groups = require('../groups');
 const privileges = require('../privileges');
 const categories = require('../categories');
 const translator = require('../translator');
@@ -81,6 +82,17 @@ module.exports = function (Topics) {
 	};
 
 	Topics.post = async function (data) {
+		console.log('[BACKEND-TOPICS] 📝 Topics.post called with data:', {
+			uid: data.uid,
+			cid: data.cid,
+			title: data.title,
+			hasContent: !!data.content,
+			visibleTo: data.visibleTo,
+			tags: data.tags?.length || 0,
+			fromQueue: data.fromQueue,
+			contentPreview: data.content?.substring(0, 100) + '...',
+		});
+
 		data = await plugins.hooks.fire('filter:topic.post', data);
 		const { uid } = data;
 
@@ -126,6 +138,24 @@ module.exports = function (Topics) {
 		postData.tid = tid;
 		postData.ip = data.req ? data.req.ip : null;
 		postData.isMain = true;
+
+		// Validate visibleTo field for new topics (same validation as replies)
+		if (postData.visibleTo !== undefined) {
+			console.log('[BACKEND-TOPICS] 🔍 Validating visibleTo for new topic:', postData.visibleTo);
+			postData.visibleTo = await validateVisibleToForReply(postData.visibleTo, uid);
+			console.log('[BACKEND-TOPICS] ✅ Visibility validation passed:', postData.visibleTo);
+		} else {
+			console.log('[BACKEND-TOPICS] 🔒 No visibleTo specified for new topic, using default');
+		}
+
+		console.log('[BACKEND-TOPICS] 🔄 Calling posts.create for new topic:', {
+			tid: postData.tid,
+			uid: postData.uid,
+			isMain: postData.isMain,
+			hasContent: !!postData.content,
+			visibleTo: postData.visibleTo,
+		});
+
 		postData = await posts.create(postData);
 		postData = await onNewPost(postData, data);
 
@@ -177,6 +207,16 @@ module.exports = function (Topics) {
 	};
 
 	Topics.reply = async function (data) {
+		console.log('[BACKEND-TOPICS] 💬 Topics.reply called with data:', {
+			tid: data.tid,
+			uid: data.uid,
+			hasContent: !!data.content,
+			visibleTo: data.visibleTo,
+			toPid: data.toPid,
+			fromQueue: data.fromQueue,
+			contentPreview: data.content?.substring(0, 100) + '...',
+		});
+
 		data = await plugins.hooks.fire('filter:topic.reply', data);
 		const { tid, uid } = data;
 
@@ -206,6 +246,45 @@ module.exports = function (Topics) {
 		}
 
 		data.ip = data.req ? data.req.ip : null;
+
+		// Check for visibility inheritance from main post
+		const mainPost = await posts.getPostFields(topicData.mainPid, ['visibleTo']);
+		let mainPostVisibility = null;
+
+		if (mainPost && mainPost.visibleTo) {
+			try {
+				mainPostVisibility = JSON.parse(mainPost.visibleTo);
+				console.log('[BACKEND-TOPICS] 📋 Main post visibility:', mainPostVisibility);
+			} catch (e) {
+				console.warn('[BACKEND-TOPICS] ❌ Failed to parse main post visibility:', mainPost.visibleTo);
+			}
+		}
+
+		// Apply inheritance rules
+		if (mainPostVisibility && !mainPostVisibility.includes('all')) {
+			// Rule 1: Restricted topic → All replies inherit restriction
+			console.log('[BACKEND-TOPICS] 🔒 Main post is restricted, inheriting visibility for reply:', mainPostVisibility);
+			data.visibleTo = mainPostVisibility;
+		} else {
+			// Rule 2: Public topic → Allow custom reply visibility
+			console.log('[BACKEND-TOPICS] 🌍 Main post is public, allowing custom reply visibility');
+			if (data.visibleTo !== undefined) {
+				console.log('[BACKEND-TOPICS] 🔍 Validating custom visibleTo for reply:', data.visibleTo);
+				data.visibleTo = await validateVisibleToForReply(data.visibleTo, uid);
+				console.log('[BACKEND-TOPICS] ✅ Custom visibility validation passed for reply:', data.visibleTo);
+			} else {
+				console.log('[BACKEND-TOPICS] 🔒 No custom visibleTo specified for reply, using default public');
+			}
+		}
+
+		console.log('[BACKEND-TOPICS] 🔄 Calling posts.create for reply:', {
+			tid: data.tid,
+			uid: data.uid,
+			hasContent: !!data.content,
+			visibleTo: data.visibleTo,
+			toPid: data.toPid,
+		});
+
 		let postData = await posts.create(data);
 		postData = await onNewPost(postData, data);
 
@@ -324,5 +403,35 @@ module.exports = function (Topics) {
 		if (!canReply) {
 			throw new Error('[[error:no-privileges]]');
 		}
+	}
+
+	async function validateVisibleToForReply(visibleTo, uid) {
+		console.log('[BACKEND-VALIDATION] 🔍 Validating visibility:', { visibleTo, uid, type: typeof visibleTo });
+
+		// If reply is public, no validation needed
+		if (!visibleTo || !Array.isArray(visibleTo) || visibleTo.includes('all')) {
+			console.log('[BACKEND-VALIDATION] 🌍 Public post detected, allowing all users');
+			return ['all'];
+		}
+
+		// Guests can only create public posts
+		if (parseInt(uid, 10) === 0) {
+			console.error('[BACKEND-VALIDATION] ❌ Guest user trying to create restricted post');
+			throw new Error('[[error:guests-cant-create-restricted-posts]]');
+		}
+
+		// Validate that all specified groups exist
+		console.log('[BACKEND-VALIDATION] 🔍 Checking if groups exist:', visibleTo);
+		const groupsExist = await groups.exists(visibleTo);
+		const invalidGroups = visibleTo.filter((groupName, index) =>
+			groupName !== 'all' && !groupsExist[index]);
+
+		if (invalidGroups.length > 0) {
+			console.error('[BACKEND-VALIDATION] ❌ Invalid groups found:', invalidGroups);
+			throw new Error(`[[error:groups-do-not-exist, ${invalidGroups.join(', ')}]]`);
+		}
+
+		console.log('[BACKEND-VALIDATION] ✅ Visibility validation passed for groups:', visibleTo);
+		return visibleTo;
 	}
 };

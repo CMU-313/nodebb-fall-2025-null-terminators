@@ -11,6 +11,7 @@ module.exports = function () {
 	const middlewares = [middleware.ensureLoggedIn];
 
 	setupApiRoute(router, 'get', '/', [], controllers.write.groups.list);
+	setupApiRoute(router, 'get', '/postable', [], controllers.write.groups.getPostableGroups);
 	setupApiRoute(router, 'post', '/', [...middlewares, middleware.checkRequired.bind(null, ['name'])], controllers.write.groups.create);
 	setupApiRoute(router, 'head', '/:slug', [middleware.assert.group], controllers.write.groups.exists);
 	setupApiRoute(router, 'put', '/:slug', [...middlewares, middleware.assert.group], controllers.write.groups.update);

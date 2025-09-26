@@ -10,6 +10,10 @@ Groups.list = async (req, res) => {
 	helpers.formatApiResponse(200, res, await api.groups.list(req, { ...req.query }));
 };
 
+Groups.getPostableGroups = async (req, res) => {
+	helpers.formatApiResponse(200, res, await api.groups.getPostableGroups(req, { ...req.query }));
+};
+
 Groups.exists = async (req, res) => {
 	helpers.formatApiResponse(200, res);
 };

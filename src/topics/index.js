@@ -154,7 +154,10 @@ Topics.getTopicsByTids = async function (tids, options) {
 
 	const filteredTopics = result.topics.filter(topic => topic && topic.category && !topic.category.disabled);
 
-	const hookResult = await plugins.hooks.fire('filter:topics.get', { topics: filteredTopics, uid: uid });
+	// Filter topics based on visibility of their main posts
+	const visibilityFilteredTopics = await Topics.filterTopicsByVisibility(filteredTopics, uid);
+
+	const hookResult = await plugins.hooks.fire('filter:topics.get', { topics: visibilityFilteredTopics, uid: uid });
 	return hookResult.topics;
 };
 
@@ -328,6 +331,71 @@ Topics.search = async function (tid, term) {
 		ids: [],
 	});
 	return Array.isArray(result) ? result : result.ids;
+};
+
+Topics.filterTopicsByVisibility = async function (topics, uid) {
+	if (!Array.isArray(topics) || !topics.length) {
+		return topics;
+	}
+
+	console.log('[TOPIC-VISIBILITY] 🔍 Filtering', topics.length, 'topics by visibility for uid:', uid);
+
+	const posts = require('../posts');
+
+	// Get main post IDs for all topics
+	const mainPids = topics.map(topic => topic.mainPid).filter(Boolean);
+
+	if (!mainPids.length) {
+		console.log('[TOPIC-VISIBILITY] ⚠️ No main posts found, returning all topics');
+		return topics;
+	}
+
+	// Get main posts with visibility data
+	const mainPosts = await posts.getPostsFields(mainPids, ['pid', 'visibleTo']);
+
+	// Create a map of pid -> visibleTo for quick lookup
+	const pidToVisibility = {};
+	mainPosts.forEach((post) => {
+		if (post && post.pid) {
+			pidToVisibility[post.pid] = post.visibleTo;
+		}
+	});
+
+	// Filter topics using the same visibility logic as posts
+	const filteredTopics = await Promise.all(topics.map(async (topic) => {
+		if (!topic || !topic.mainPid) {
+			// No main post, allow through
+			console.log('[TOPIC-VISIBILITY] 🌍 Topic', topic?.tid, 'has no main post, allowing');
+			return topic;
+		}
+
+		const mainPostVisibility = pidToVisibility[topic.mainPid];
+
+		if (!mainPostVisibility) {
+			// No visibility restriction, allow through
+			console.log('[TOPIC-VISIBILITY] 🌍 Topic', topic.tid, 'main post has no visibility restriction');
+			return topic;
+		}
+
+		// Apply the same visibility filtering as posts
+		const mockPost = { pid: topic.mainPid, visibleTo: mainPostVisibility };
+		const filteredPosts = await posts.filterPostsByVisibility([mockPost], uid);
+
+		const hasAccess = filteredPosts.length > 0;
+
+		console.log('[TOPIC-VISIBILITY]', hasAccess ? '✅' : '❌',
+			'Topic', topic.tid, '(main post', topic.mainPid, ')',
+			'visibility:', mainPostVisibility, 'User access:', hasAccess);
+
+		return hasAccess ? topic : null;
+	}));
+
+	// Remove null entries (topics user can't access)
+	const result = filteredTopics.filter(Boolean);
+
+	console.log('[TOPIC-VISIBILITY] 📊 Filtered', topics.length, 'topics down to', result.length, 'for uid', uid);
+
+	return result;
 };
 
 require('../promisify')(Topics);

@@ -1,6 +1,23 @@
 PostObject:
   description: A single post in the array returned from `Posts.getPostSummaryByPids`
   type: object
+  required:
+    - pid
+    - tid
+    - url
+    - content
+    - uid
+    - timestamp
+    - deleted
+    - upvotes
+    - downvotes
+    - votes
+    - timestampISO
+    - user
+    - topic
+    - category
+    - isMainPost
+    - replies
   properties:
     pid:
       type: number
@@ -155,6 +172,12 @@ PostObject:
       type: boolean
     replies:
       type: number
+    visibleTo:
+      type: array
+      items:
+        type: string
+      description: Array of group names that can see this post
+      nullable: true
 PostDataObject:
   description: The output as returned from `Posts.getPostsData`
   allOf:
@@ -372,6 +395,12 @@ PostDataObject:
         flagId:
           type: number
           description: The flag identifier, if this particular post has been flagged before
+        visibleTo:
+          type: array
+          items:
+            type: string
+          description: Array of group names that can see this post
+          nullable: true
     - type: object
       description: Optional properties that may or may not be present (except for `pid`, which is always present, and is only here as a hack to pass validation)
       properties:

@@ -49,6 +49,14 @@ Posts.getPostsByPids = async function (pids, uid) {
 
 	let posts = await Posts.getPostsData(pids);
 	posts = await Promise.all(posts.map(Posts.parsePost));
+
+	console.log('[POST-FILTERING] 🔍 Filtering posts by visibility for uid:', uid, 'Posts before filtering:', posts.length);
+
+	// Filter posts based on visibility
+	posts = await Posts.filterPostsByVisibility(posts, uid);
+
+	console.log('[POST-FILTERING] ✅ Posts after visibility filtering:', posts.length);
+
 	const data = await plugins.hooks.fire('filter:post.getPosts', { posts: posts, uid: uid });
 	if (!data || !Array.isArray(data.posts)) {
 		return [];
@@ -71,6 +79,69 @@ Posts.getPidIndex = async function (pid, tid, topicPostSort) {
 		return 0;
 	}
 	return utils.isNumber(index) ? parseInt(index, 10) + 1 : 0;
+};
+
+Posts.filterPostsByVisibility = async function (posts, uid) {
+	if (!Array.isArray(posts) || !posts.length) {
+		return posts;
+	}
+
+	const groups = require('../groups');
+
+	// Get user's groups if user is logged in
+	let userGroups = [];
+	if (uid > 0) {
+		userGroups = await groups.getUserGroups([uid]);
+		userGroups = userGroups[0] || [];
+
+		// Extract group names from group objects (some groups return objects, others strings)
+		userGroups = userGroups.map((group) => {
+			if (typeof group === 'object' && group.name) {
+				return group.name;
+			}
+			return group;
+		});
+
+		userGroups.push('registered-users'); // All logged-in users are in this group
+	}
+	userGroups.push('all'); // Everyone can see 'all' posts
+
+	console.log('[POST-VISIBILITY] 👥 User groups for uid', uid, ':', userGroups);
+
+	const filteredPosts = posts.filter((post) => {
+		if (!post || !post.visibleTo) {
+			// No visibility restriction, show to everyone
+			console.log('[POST-VISIBILITY] 🌍 Post', post?.pid, 'has no visibility restriction');
+			return true;
+		}
+
+		let visibleTo;
+		try {
+			visibleTo = Array.isArray(post.visibleTo) ? post.visibleTo : JSON.parse(post.visibleTo);
+		} catch (e) {
+			// If parsing fails, assume it's public
+			console.log('[POST-VISIBILITY] ❌ Failed to parse visibleTo for post', post.pid, ':', post.visibleTo);
+			return true;
+		}
+
+		// Check if post is public
+		if (visibleTo.includes('all')) {
+			console.log('[POST-VISIBILITY] 🌍 Post', post.pid, 'is public');
+			return true;
+		}
+
+		// Check if user has access to any of the required groups
+		const hasAccess = visibleTo.some(group => userGroups.includes(group));
+
+		console.log('[POST-VISIBILITY]', hasAccess ? '✅' : '❌',
+			'Post', post.pid, 'visibility:', visibleTo, 'User access:', hasAccess);
+
+		return hasAccess;
+	});
+
+	console.log('[POST-VISIBILITY] 📊 Filtered', posts.length, 'posts down to', filteredPosts.length, 'for uid', uid);
+
+	return filteredPosts;
 };
 
 Posts.getPostIndices = async function (posts, uid) {
