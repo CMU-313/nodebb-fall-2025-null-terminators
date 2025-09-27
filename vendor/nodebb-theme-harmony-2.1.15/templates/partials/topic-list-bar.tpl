@@ -26,6 +26,13 @@
 				{{{ end }}}
 				<!-- IMPORT partials/category/tools-dropdown-left.tpl -->
 
+				<a href="{config.relative_path}/date-filter"
+                    class="btn btn-ghost btn-sm"
+                    title="Date Filtering">
+                    <i class="fa fa-calendar" style="color: blue;"></i>
+                    <strong>Date Filtering
+                </a>
+
 				{{{ if (!feeds:disableRSS && rssFeedUrl) }}}
 				<a class="btn btn-ghost btn-sm d-none d-lg-flex align-items-center align-self-stretch" target="_blank" href="{rssFeedUrl}" itemprop="item" title="[[global:rss-feed]]"><i class="fa fa-rss text-primary"></i></a>
 				{{{ end }}}
