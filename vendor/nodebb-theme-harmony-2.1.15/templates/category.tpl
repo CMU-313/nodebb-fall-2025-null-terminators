@@ -39,6 +39,11 @@
 </div>
 {{{ end }}}
 
+<!-- This search bar template was written with copilot when attempting to edit
+	already existing search bar code from partial/search.tpl and then importing it.
+	This code seemed to have the functionality I was looking for, so I copied it over
+	to the category template file directly. It has a placeholder currently for the path
+	that will be used from the backend -->
 <div class="search-inline d-flex align-items-center">
 	<form action="{config.relative_path}/search" method="get" class="d-flex w-100" role="search">
 		<input name="query" type="search" class="form-control" placeholder="[[global:search]]" aria-label="[[search:type-to-search]]" autocomplete="off" />
