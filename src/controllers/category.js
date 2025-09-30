@@ -16,6 +16,7 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
+const topics = require('../topics')
 
 const categoryController = module.exports;
 
@@ -182,6 +183,48 @@ categoryController.get = async function (req, res, next) {
 	}
 
 	res.render('category', categoryData);
+};
+
+categoryController.search = async function (req, res, next) {
+	// Used Copilot to understand structures of req, res, next
+	let cid = req.params.category_id;
+	const searchTerm = req.query.term;
+
+	// Error checking (adapted from categoryController.get)
+	if (cid === '-1') {
+		return helpers.redirect(res, `${res.locals.isAPI ? '/api' : ''}/world?${qs.stringify(req.query)}`);
+	}
+
+	if (!utils.isNumber(cid)) {
+		const assertion = await activitypub.actors.assertGroup([cid]);
+		if (!activitypub.helpers.isUri(cid)) {
+			cid = await db.getObjectField('handle:cid', cid);
+		}
+
+		if (!assertion || !cid) {
+			return next();
+		}
+	}
+
+	// Check for user permissions
+	const [categoryFields, userPrivileges] = await Promise.all([
+		categories.getCategoryFields(cid, ['slug', 'disabled', 'link']),
+		privileges.categories.get(cid, req.uid),
+	]);
+	if (!userPrivileges.read) {
+		return helpers.notAllowed(req, res);
+	}
+
+	// Run search with the given search term on the current category
+	const searchResults = await topics.searchInCategory(searchTerm, cid, req.uid);
+	const searchData = {
+		category: categoryFields,
+		searchResults: searchResults,
+		searchTerm: searchTerm,
+	};
+
+	buildBreadcrumbs(req, searchData);
+	res.render('category/search', searchData);
 };
 
 async function buildBreadcrumbs(req, categoryData) {
