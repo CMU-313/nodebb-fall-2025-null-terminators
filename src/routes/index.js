@@ -87,6 +87,8 @@ _mounts.categories = (app, name, middleware, controllers) => {
 _mounts.category = (app, name, middleware, controllers) => {
 	setupPageRoute(app, `/${name}/:category_id/:slug/:topic_index`, [], controllers.category.get);
 	setupPageRoute(app, `/${name}/:category_id/:slug?`, [], controllers.category.get);
+	// Route for search bar
+	setupPageRoute(app, `/${name}/:category_id/:slug/search`, [], controllers.category.search);
 };
 
 _mounts.users = (app, name, middleware, controllers) => {
