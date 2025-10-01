@@ -8,13 +8,14 @@ const user = require('../user');
 const groups = require('../groups');
 const privileges = require('../privileges');
 const utils = require('../utils');
-const Posts = require('../posts');
+// const Posts = require('../posts');
 
 const activitypubApi = require('./activitypub');
 
 const categoriesAPI = module.exports;
 
 // Mask authors shown on a category card if the underlying post was anonymous
+/*
 async function maskTopicUsersIfAnonymous(caller, topic) {
 	if (!topic) return { maskedMain: false, maskedTeaser: false, maskedLast: false, reason: 'no-topic' };
 
@@ -46,6 +47,7 @@ async function maskTopicUsersIfAnonymous(caller, topic) {
 
 	return { maskedMain, maskedTeaser, maskedLast, reason: (!mainPid && !teaserPid && !lastPid) ? 'no-pids' : undefined };
 }
+*/
 
 const hasAdminPrivilege = async (uid, privilege = 'categories') => {
 	const ok = await privileges.admin.can(`admin:${privilege}`, uid);

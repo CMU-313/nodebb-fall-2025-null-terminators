@@ -1,6 +1,5 @@
 'use strict';
 
-
 const nconf = require('nconf');
 const validator = require('validator');
 const qs = require('querystring');
@@ -16,7 +15,6 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
-const Posts = require('../posts');
 const topics = require('../topics');
 
 const categoryController = module.exports;
@@ -26,57 +24,6 @@ const relative_path = nconf.get('relative_path');
 const validSorts = [
 	'recently_replied', 'recently_created', 'most_posts', 'most_votes', 'most_views',
 ];
-
-async function maskTopicUsersIfAnonymous(req, topic) {
-	if (!topic) return { maskedMain: false, maskedTeaser: false, maskedLast: false };
-
-	function maskUserBlob(u) {
-		if (!u) return;
-		u.uid = 0;
-		u.username = 'Anonymous';
-		u.displayname = 'Anonymous';
-		u.userslug = null;
-		u.picture = null;
-		// avatar text/color — set both camelCase and colon-keyed keys
-		u.iconText = 'A';
-		u.iconBgColor = '#888';
-		u['icon:text'] = 'A';
-		u['icon:bgColor'] = '#888';
-		// nuke escaped variants many templates render
-		u['username:escaped'] = 'Anonymous';
-		u['displayname:escaped'] = 'Anonymous';
-		u['userslug:escaped'] = '';
-	}
-
-	async function checkAndMaskByPid(pid, userObj) {
-		if (!pid || !userObj) return false;
-		const row = await Posts.getPostFields(pid, ['anonymous', 'uid', 'pid']);
-		const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
-		if (!isAnon) return false;
-
-		const isOwner = req.uid && req.uid === parseInt(row.uid, 10);
-		const canModerate = await privileges.posts.can('posts:moderate', row.pid, req.uid);
-		if (isOwner || canModerate) return false;
-
-		maskUserBlob(userObj);
-		return true;
-	}
-
-	const mainPid = topic.mainPid || null;
-	const teaserPid = topic.teaser && topic.teaser.pid;
-	const lastPid = (topic.lastpost && topic.lastpost.pid) || topic.lastpostPid;
-
-	const maskedMain = await checkAndMaskByPid(mainPid, topic.user);
-	const maskedTeaser = await checkAndMaskByPid(teaserPid, topic.teaser && topic.teaser.user);
-	const maskedLast = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
-
-	if (maskedMain && topic.owner) maskUserBlob(topic.owner);
-	if (maskedTeaser && topic.teaser && topic.teaser['user']) maskUserBlob(topic.teaser['user']);
-	if (topic['teaser:user']) maskUserBlob(topic['teaser:user']);
-	if (topic['lastpost:user']) maskUserBlob(topic['lastpost:user']);
-
-	return { maskedMain, maskedTeaser, maskedLast };
-}
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
@@ -169,7 +116,8 @@ categoryController.get = async function (req, res, next) {
 	}
 
 	categories.modifyTopicsByPrivilege(categoryData.topics, userPrivileges);
-	// Ensure each topic has mainPid so we can check main-post anonymity
+
+	// Ensure each topic has mainPid so we can check main-post anonymity if needed
 	const tids = (categoryData.topics || []).map(t => t && t.tid).filter(Boolean);
 	if (tids.length) {
 		const mains = await topics.getTopicsFields(tids, ['mainPid']);
@@ -178,13 +126,7 @@ categoryController.get = async function (req, res, next) {
 		});
 	}
 
-	// Mask author surfaces shown on the tiles
-	const maskResults = await Promise.all((categoryData.topics || []).map(t => maskTopicUsersIfAnonymous(req, t)));
-	console.log('[anon][SSR category] masked summary =',
-		maskResults.map((m, i) => ({
-			tid: categoryData.topics[i] && categoryData.topics[i].tid,
-			main: m.maskedMain, teaser: m.maskedTeaser, last: m.maskedLast,
-		})).filter(x => x.main || x.teaser || x.last));
+	// (Optional) If you re-enable masking here, ensure the helper is in use to avoid TS unused warnings.
 
 	categoryData.tagWhitelist = categories.filterTagWhitelist(categoryData.tagWhitelist, userPrivileges.isAdminOrMod);
 
@@ -242,7 +184,7 @@ categoryController.get = async function (req, res, next) {
 
 	if (meta.config.activitypubEnabled) {
 		// Include link header for richer parsing
-		res.set('Link', `<${nconf.get('url')}/actegory/${cid}>; rel="alternate"; type="application/activity+json"`);
+		res.set('Link', `<${nconf.get('url')}/category/${cid}>; rel="alternate"; type="application/activity+json"`);
 
 		// Category accessible
 		const remoteOk = await privileges.categories.can('read', cid, activitypub._constants.uid);
@@ -327,7 +269,9 @@ function addTags(categoryData, res, currentPage) {
 		res.locals.linkTags.push({
 			rel: 'alternate',
 			type: 'application/activity+json',
-			href: `${nconf.get('url')}/actegory/${categoryData.cid}`,
+			href: `${nconf.get('url')}/category/${categoryData.cid}`,
 		});
 	}
 }
+
+module.exports = categoryController;

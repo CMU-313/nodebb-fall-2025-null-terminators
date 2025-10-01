@@ -34,7 +34,6 @@ async function maskAnonymousIfNeeded(caller, post) {
 		return;
 	}
 	if (!post.anonymous) {
-		console.debug('[anon] post pid=%s anonymous=false; no masking needed', post.pid);
 		return;
 	}
 
@@ -42,13 +41,10 @@ async function maskAnonymousIfNeeded(caller, post) {
 	const selfPost = caller.uid && caller.uid === parseInt(post.uid, 10);
 	const canModerate = await privileges.posts.can('posts:moderate', post.pid, caller.uid);
 	if (selfPost || canModerate) {
-		console.debug('[anon] post pid=%s viewer uid=%s is %s; identity visible',
-			post.pid, caller.uid, selfPost ? 'owner' : 'moderator');
 		return;
 	}
 
 	// hide identifying fields for everyone else
-	console.debug('[anon] MASKING post pid=%s for viewer uid=%s', post.pid, caller.uid);
 	post.uid = 0;
 	delete post.handle;
 	if (post.user) {
@@ -722,3 +718,5 @@ async function sendQueueNotification(type, targetUid, path, notificationText) {
 	const notifObj = await notifications.create(notifData);
 	await notifications.push(notifObj, [targetUid]);
 }
+
+module.exports = postsAPI;

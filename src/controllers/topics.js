@@ -168,11 +168,12 @@ topicsController.get = async function getTopic(req, res, next) {
 	} catch (e) {
 		// optional: console.warn('[anon][SSR topic] failed to mask header user', e);
 	}
-
+	/*
 	console.log(
 		'[anon][SSR topic] masked PIDs =',
 		(topicData.posts || []).filter(p => p?.user?.username === 'Anonymous').map(p => p.pid)
 	);
+	*/
 
 	topicData.tagWhitelist = categories.filterTagWhitelist(topicData.tagWhitelist, userPrivileges.isAdminOrMod);
 
