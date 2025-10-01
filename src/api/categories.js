@@ -202,6 +202,7 @@ categoriesAPI.getTopics = async (caller, data) => {
 	}
 
 	// Mask topic owner / teaser / lastpost as needed
+	/*
 	const maskResults = await Promise.all((result.topics || []).map(t => maskTopicUsersIfAnonymous(caller, t)));
 	console.log(
 		'[anon] categories.getTopics masked summary =',
@@ -215,6 +216,7 @@ categoriesAPI.getTopics = async (caller, data) => {
 			}))
 			.filter(x => x.main || x.teaser || x.last)
 	);
+	*/
 
 	// Return shape that always includes `topics`
 	return {
