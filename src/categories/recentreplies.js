@@ -90,7 +90,8 @@ module.exports = function (Categories) {
 
 		tids = await privileges.topics.filterTids('topics:read', tids, uid);
 		const topics = await getTopics(tids, uid);
-		assignTopicsToCategories(categoryData, topics);
+		const visibilityFilteredTopics = await filterTopicsByPostVisibility(topics, uid);
+		assignTopicsToCategories(categoryData, visibilityFilteredTopics);
 
 		bubbleUpChildrenPosts(categoryData);
 	};
@@ -127,6 +128,26 @@ module.exports = function (Categories) {
 			}
 		});
 		return teasers.filter(Boolean);
+	}
+
+	async function filterTopicsByPostVisibility(topics, uid) {
+		if (!Array.isArray(topics) || !topics.length) {
+			return topics;
+		}
+
+		// Get post IDs from teasers (the recent post that would be shown)
+		const pids = topics.map(topic => topic.pid).filter(Boolean);
+
+		if (!pids.length) {
+			return topics;
+		}
+
+		// Filter posts by visibility using existing privilege system
+		const visiblePids = await privileges.posts.filterByVisibility(pids, uid);
+		const visiblePidSet = new Set(visiblePids);
+
+		// Return only topics whose teaser posts are visible to the user
+		return topics.filter(topic => !topic.pid || visiblePidSet.has(topic.pid));
 	}
 
 	function assignTopicsToCategories(categories, topics) {
