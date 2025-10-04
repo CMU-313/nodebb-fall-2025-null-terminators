@@ -106,9 +106,12 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 	}
 	userGroups.push('all'); // Everyone can see 'all' posts
 
+	console.log('[POST-VISIBILITY] 👥 User groups for uid', uid, ':', userGroups);
+
 	const filteredPosts = posts.filter((post) => {
 		if (!post || !post.visibleTo) {
 			// No visibility restriction, show to everyone
+			console.log('[POST-VISIBILITY] 🌍 Post', post?.pid, 'has no visibility restriction');
 			return true;
 		}
 
@@ -117,19 +120,26 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 			visibleTo = Array.isArray(post.visibleTo) ? post.visibleTo : JSON.parse(post.visibleTo);
 		} catch (e) {
 			// If parsing fails, assume it's public
+			console.log('[POST-VISIBILITY] ❌ Failed to parse visibleTo for post', post.pid, ':', post.visibleTo);
 			return true;
 		}
 
 		// Check if post is public
 		if (visibleTo.includes('all')) {
+			console.log('[POST-VISIBILITY] 🌍 Post', post.pid, 'is public');
 			return true;
 		}
 
 		// Check if user has access to any of the required groups
 		const hasAccess = visibleTo.some(group => userGroups.includes(group));
 
+		console.log('[POST-VISIBILITY]', hasAccess ? '✅' : '❌',
+			'Post', post.pid, 'visibility:', visibleTo, 'User access:', hasAccess);
+
 		return hasAccess;
 	});
+
+	console.log('[POST-VISIBILITY] 📊 Filtered', posts.length, 'posts down to', filteredPosts.length, 'for uid', uid);
 
 	return filteredPosts;
 };
