@@ -130,6 +130,12 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 			return true;
 		}
 
+		// Check if user owns the post
+		if (post.uid && post.uid === parseInt(uid, 10)) {
+			console.log('[POST-VISIBILITY] 👤 Post', post.pid, 'owned by user', uid);
+			return true;
+		}
+
 		// Check if user has access to any of the required groups
 		const hasAccess = visibleTo.some(group => userGroups.includes(group));
 

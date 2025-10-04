@@ -350,14 +350,14 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 		return topics;
 	}
 
-	// Get main posts with visibility data
-	const mainPosts = await posts.getPostsFields(mainPids, ['pid', 'visibleTo']);
+	// Get main posts with visibility data and uid
+	const mainPosts = await posts.getPostsFields(mainPids, ['pid', 'visibleTo', 'uid']);
 
-	// Create a map of pid -> visibleTo for quick lookup
-	const pidToVisibility = {};
+	// Create a map of pid -> post data for quick lookup
+	const pidToPost = {};
 	mainPosts.forEach((post) => {
 		if (post && post.pid) {
-			pidToVisibility[post.pid] = post.visibleTo;
+			pidToPost[post.pid] = post;
 		}
 	});
 
@@ -369,23 +369,23 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 			return topic;
 		}
 
-		const mainPostVisibility = pidToVisibility[topic.mainPid];
+		const mainPost = pidToPost[topic.mainPid];
 
-		if (!mainPostVisibility) {
+		if (!mainPost || !mainPost.visibleTo) {
 			// No visibility restriction, allow through
 			console.log('[TOPIC-VISIBILITY] 🌍 Topic', topic.tid, 'main post has no visibility restriction');
 			return topic;
 		}
 
-		// Apply the same visibility filtering as posts
-		const mockPost = { pid: topic.mainPid, visibleTo: mainPostVisibility };
+		// Apply the same visibility filtering as posts (include uid for ownership check)
+		const mockPost = { pid: mainPost.pid, visibleTo: mainPost.visibleTo, uid: mainPost.uid };
 		const filteredPosts = await posts.filterPostsByVisibility([mockPost], uid);
 
 		const hasAccess = filteredPosts.length > 0;
 
 		console.log('[TOPIC-VISIBILITY]', hasAccess ? '✅' : '❌',
 			'Topic', topic.tid, '(main post', topic.mainPid, ')',
-			'visibility:', mainPostVisibility, 'User access:', hasAccess);
+			'visibility:', mainPost.visibleTo, 'User access:', hasAccess);
 
 		return hasAccess ? topic : null;
 	}));
