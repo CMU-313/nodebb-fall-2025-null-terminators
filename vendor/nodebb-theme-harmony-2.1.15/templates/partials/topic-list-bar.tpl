@@ -30,15 +30,15 @@
 				I changed it so that the button doesn't redirect to a page not found and 
 				changed the naming along with the styling to be the same as nodeBB -->
 				<a href="#"
-					id ="date-filter"
+                    id ="date-filter"
                     class="btn btn-ghost btn-sm"
-                    title="Date Filtering">
-                    <i class="fa fa-calendar" style="color: blue;"></i>
-                    <strong>Date Filtering
+                    title="Date Filtering"
+                    <i class="fa fa-calendar text-primary" style="color: blue;"></i>
+                    <span style="font-weight: 600;">Date Filtering</span>
                 </a>
 
 				{{{ if (!feeds:disableRSS && rssFeedUrl) }}}
-				<a class="btn btn-ghost btn-sm d-none d-lg-flex align-items-center align-self-stretch" target="_blank" href="{rssFeedUrl}" itemprop="item" title="[[global:rss-feed]]"><i class="fa fa-rss text-primary"></i></a>
+				<a class="btn btn-ghost btn-sm d-none d-lg-flex align-items-center justify-content-center" target="_blank" href="{rssFeedUrl}" itemprop="item" title="[[global:rss-feed]]"><i class="fa fa-rss text-primary"></i></a>
 				{{{ end }}}
 
 				<a href="{{{ if (template.category || template.world) }}}{url}{{{ else }}}{config.relative_path}/{selectedFilter.url}{querystring}{{{ end }}}" class="btn btn-secondary fw-semibold position-absolute top-100 translate-middle-x start-50 mt-1 hide" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;" id="new-topics-alert">
