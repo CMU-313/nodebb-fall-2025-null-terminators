@@ -16,7 +16,6 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
-const topics = require('../topics');
 
 const categoryController = module.exports;
 
@@ -184,7 +183,7 @@ categoryController.get = async function (req, res, next) {
 
 	res.render('category', categoryData);
 };
-
+/**
 categoryController.search = async function (req, res, next) {
 	// Used Copilot to understand structures of req, res, next
 	let cid = req.params.category_id;
@@ -226,7 +225,7 @@ categoryController.search = async function (req, res, next) {
 	buildBreadcrumbs(req, searchData);
 	res.render('category/search', searchData);
 };
-
+*/
 async function buildBreadcrumbs(req, categoryData) {
 	const breadcrumbs = [
 		{
