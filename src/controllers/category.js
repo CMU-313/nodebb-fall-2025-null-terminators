@@ -16,7 +16,7 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
-const topics = require('../topics')
+const topics = require('../topics');
 
 const categoryController = module.exports;
 
