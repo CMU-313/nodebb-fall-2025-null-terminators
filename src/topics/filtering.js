@@ -1,7 +1,7 @@
 'use strict';
 
 const privileges = require('../privileges');
-const db = require('../database');	
+const db = require('../database');
 
 module.exports = function (Topics) {
 	Topics.getTopicsByDate = async function ({date, uid, cid}) {

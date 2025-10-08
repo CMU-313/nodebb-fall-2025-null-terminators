@@ -369,5 +369,5 @@ topicsAPI.getTopicsByDate = async function (caller, data) {
 		date: date,
 		uid: caller.uid,
 		cid: cid,
-	})
-}
+	});
+};
