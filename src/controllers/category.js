@@ -114,7 +114,7 @@ categoryController.get = async function (req, res, next) {
 	if (searchTerm) {
 		console.log('hereeee', searchTerm);
 		const searchResults = await topics.searchInCategory(searchTerm, cid, req.uid);
-		// Slicing results array for pagination (from Copilot)
+		// Slicing array of results for pagination - get first page (from Copilot)
 		categoryData.topics = searchResults.slice(start, stop + 1);
 		categoryData.topic_count = searchResults.length;
 	}
