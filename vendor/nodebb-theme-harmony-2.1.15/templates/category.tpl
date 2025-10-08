@@ -46,7 +46,7 @@
 	that will be used from the backend -->
 <div class="search-inline d-flex align-items-center">
 	<form action="{config.relative_path}" method="get" class="d-flex w-100" role="search">
-		<input name="query" type="search" class="form-control" placeholder="[[global:search]]" aria-label="[[search:type-to-search]]" autocomplete="off" />
+		<input name="search_term" type="search" class="form-control" placeholder="[[global:search]]" aria-label="[[search:type-to-search]]" autocomplete="off" />
 		<button type="submit" class="btn btn-outline-secondary ms-2">[[global:search]]</button>
 	</form>
 </div>
