@@ -16,6 +16,7 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
+const topics = require('../topics');
 
 const categoryController = module.exports;
 
@@ -27,6 +28,8 @@ const validSorts = [
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
+	const searchTerm = req.query.search_term;
+
 	if (cid === '-1') {
 		return helpers.redirect(res, `${res.locals.isAPI ? '/api' : ''}/world?${qs.stringify(req.query)}`);
 	}
@@ -105,6 +108,15 @@ categoryController.get = async function (req, res, next) {
 	});
 	if (!categoryData) {
 		return next();
+	}
+
+	// Run search to return only matched topics when search term is present
+	if (searchTerm) {
+		console.log('hereeee', searchTerm);
+		const searchResults = await topics.searchInCategory(searchTerm, cid, req.uid);
+		// Slicing results array for pagination (from Copilot)
+		categoryData.topics = searchResults.slice(start, stop + 1);
+		categoryData.topic_count = searchResults.length;
 	}
 
 	if (topicIndex > Math.max(categoryData.topic_count - 1, 0)) {
