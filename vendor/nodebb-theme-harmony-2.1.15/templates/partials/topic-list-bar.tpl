@@ -32,10 +32,20 @@
 				<a 
                     id ="date-filter"
                     class="btn btn-ghost btn-sm"
-                    title="Date Filtering">
+                    title="Date Filtering"
+					onclick="toggleDateFilter()">
                     <i class="fa fa-calendar text-primary" style="color: blue;"></i>
                     <span style="font-weight: 600;">Date Filtering</span>
                 </a>
+											
+				<div id="date-filter-container" class="border rounded bg-light p-0 m-0" style="display: none; height: 30px;">
+					<div class="input-group input-group-sm align-items-center">
+        				<input type="text" class="form-control" style = "width: 70px;" placeholder="Month" aria-label="Date Filter" aria-describedby="date-filter-label">
+						<input type="text" class="form-control" style = "width: 70px;" placeholder="Day" aria-label="Date Filter" aria-describedby="date-filter-label">
+						<input type="text" class="form-control" style = "width: 70px;" placeholder="Year" aria-label="Date Filter" aria-describedby="date-filter-label">
+						<button class="btn btn-primary" type="button" id="submit-date-filter">Submit</button>
+    				</div>
+				</div>
 
 				{{{ if (!feeds:disableRSS && rssFeedUrl) }}}
 				<a class="btn btn-ghost btn-sm d-none d-lg-flex align-items-center justify-content-center" target="_blank" href="{rssFeedUrl}" itemprop="item" title="[[global:rss-feed]]"><i class="fa fa-rss text-primary"></i></a>
@@ -64,3 +74,14 @@
 		</div>
 	</nav>
 </div>
+
+<script>
+    function toggleDateFilter() {
+        const container = document.getElementById('date-filter-container');
+		if (container.style.display === 'none') {
+    		container.style.display = 'block';
+		} else {
+    		container.style.display = 'none';
+		}
+    }
+</script>
