@@ -13,30 +13,31 @@ const Posts = require('../posts');
 const categoriesController = module.exports;
 
 async function maskTeaserIfAnonymous(req, cat) {
-	if (!cat || !cat.teaser || !cat.teaser.pid || !cat.teaser.user) return false;
+	if (!cat || !cat.teaser || !cat.teaser.pid) return false;
 	const row = await Posts.getPostFields(cat.teaser.pid, ['anonymous', 'uid', 'pid']);
 	const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
 	if (!isAnon) return false;
 
-	const isOwner = req.uid && req.uid === parseInt(row.uid, 10);
+	// owners/mods still see identity (match topics.js behavior)
+	const isOwner = req.uid && parseInt(req.uid, 10) === parseInt(row.uid, 10);
 	const canModerate = await privileges.posts.can('posts:moderate', row.pid, req.uid);
 	if (isOwner || canModerate) return false;
 
-	const u = cat.teaser.user;
-	u.uid = 0;
-	u.username = 'Anonymous';
-	u.displayname = 'Anonymous';
-	u.userslug = null;
-	u.picture = null;
-	// BOTH camelCase and colon-keyed icon keys
-	u.iconText = 'A';
-	u.iconBgColor = '#888';
-	u['icon:text'] = 'A';
-	u['icon:bgColor'] = '#888';
-	// escaped variants some templates render
-	u['username:escaped'] = 'Anonymous';
-	u['displayname:escaped'] = 'Anonymous';
-	u['userslug:escaped'] = '';
+	// mark teaser object as anonymous so downstream logic/templates can rely on it
+	cat.teaser.anonymous = true;
+	// assign a FRESH masked user object so we don't mutate any shared blobs
+	cat.teaser.user = {
+		uid: 0,
+		username: 'Anonymous',
+		'username:escaped': 'Anonymous',
+		displayname: 'Anonymous',
+		'displayname:escaped': 'Anonymous',
+		userslug: null,
+		'userslug:escaped': '',
+		picture: null,
+		'icon:text': 'A',
+		'icon:bgColor': '#888',
+	};
 	return true;
 }
 

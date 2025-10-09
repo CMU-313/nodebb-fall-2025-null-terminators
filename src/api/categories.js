@@ -8,46 +8,72 @@ const user = require('../user');
 const groups = require('../groups');
 const privileges = require('../privileges');
 const utils = require('../utils');
-// const Posts = require('../posts');
+const Posts = require('../posts');
 
 const activitypubApi = require('./activitypub');
 
 const categoriesAPI = module.exports;
 
 // Mask authors shown on a category card if the underlying post was anonymous
-/*
+
 async function maskTopicUsersIfAnonymous(caller, topic) {
 	if (!topic) return { maskedMain: false, maskedTeaser: false, maskedLast: false, reason: 'no-topic' };
 
-	async function checkAndMaskByPid(pid, userObj) {
-		if (!pid || !userObj) return false;
+	// Returns a masked user object when the post is anonymous and should be masked,
+	// otherwise returns false. This avoids creating a local user object that is not
+	// attached back to the topic structure.
+	async function checkAndMaskByPid(pid) {
+		if (!pid) return false;
 		const row = await Posts.getPostFields(pid, ['anonymous', 'uid', 'pid']);
 		const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
 		if (!isAnon) return false;
-		const isOwner = caller.uid && caller.uid === parseInt(row.uid, 10);
+		// owners/mods still see identity (use parseInt on both sides to avoid type mismatch)
+		const isOwner = caller.uid && parseInt(caller.uid, 10) === parseInt(row.uid, 10);
 		const canModerate = await privileges.posts.can('posts:moderate', row.pid, caller.uid);
 		if (isOwner || canModerate) return false;
-		// mask
-		userObj.uid = 0;
-		userObj.username = 'Anonymous';
-		userObj.userslug = null;
-		userObj.picture = null;
-		userObj.iconText = 'A';
-		userObj.iconBgColor = '#888';
-		return true;
+
+		// Build and return a fresh masked user object (do not mutate input object)
+		const masked = {
+			uid: 0,
+			username: 'Anonymous',
+			'username:escaped': 'Anonymous',
+			displayname: 'Anonymous',
+			'displayname:escaped': 'Anonymous',
+			userslug: null,
+			'userslug:escaped': '',
+			picture: null,
+			'icon:text': 'A',
+			'icon:bgColor': '#888',
+		};
+		return masked;
 	}
 
 	const mainPid = topic.mainPid || null;
 	const teaserPid = topic.teaser && topic.teaser.pid;
 	const lastPid = (topic.lastpost && topic.lastpost.pid) || topic.lastpostPid;
 
-	const maskedMain = await checkAndMaskByPid(mainPid, topic.user);
-	const maskedTeaser = await checkAndMaskByPid(teaserPid, topic.teaser && topic.teaser.user);
-	const maskedLast = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
+	const mainMasked = await checkAndMaskByPid(mainPid, topic.user);
+	if (mainMasked) topic.user = mainMasked;
 
-	return { maskedMain, maskedTeaser, maskedLast, reason: (!mainPid && !teaserPid && !lastPid) ? 'no-pids' : undefined };
+	const teaserMasked = await checkAndMaskByPid(teaserPid, topic.teaser && topic.teaser.user);
+	if (teaserMasked) {
+		if (!topic.teaser) topic.teaser = {};
+		topic.teaser.user = teaserMasked;
+	}
+
+	const lastMasked = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
+	if (lastMasked) {
+		if (topic.lastpost) topic.lastpost.user = lastMasked;
+	}
+
+	return {
+		maskedMain: !!mainMasked,
+		maskedTeaser: !!teaserMasked,
+		maskedLast: !!lastMasked,
+		reason: (!mainPid && !teaserPid && !lastPid) ? 'no-pids' : undefined,
+	};
 }
-*/
+
 
 const hasAdminPrivilege = async (uid, privilege = 'categories') => {
 	const ok = await privileges.admin.can(`admin:${privilege}`, uid);
@@ -204,7 +230,7 @@ categoriesAPI.getTopics = async (caller, data) => {
 	}
 
 	// Mask topic owner / teaser / lastpost as needed
-	/*
+	
 	const maskResults = await Promise.all((result.topics || []).map(t => maskTopicUsersIfAnonymous(caller, t)));
 	console.log(
 		'[anon] categories.getTopics masked summary =',
@@ -218,7 +244,7 @@ categoriesAPI.getTopics = async (caller, data) => {
 			}))
 			.filter(x => x.main || x.teaser || x.last)
 	);
-	*/
+	
 
 	// Return shape that always includes `topics`
 	return {

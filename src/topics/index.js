@@ -133,7 +133,22 @@ Topics.getTopicsByTids = async function (tids, options) {
 		if (topic) {
 			topic.thumbs = result.thumbs[i];
 			topic.category = result.categoriesMap[topic.cid];
-			topic.user = topic.uid ? result.usersMap[topic.uid] : { ...result.usersMap[topic.uid] };
+			// Ensure topic.user exists and has sensible fallbacks so templates can render a name
+			// Special-case uid === 0 (guest) because earlier logic that built `uids` skips 0
+			// (truthiness check would treat 0 as falsy), which would leave topic.user as {}
+			// and cause the username to be replaced by 'Anonymous'. Use User.guestData for guests.
+			if (result.usersMap[topic.uid]) {
+				topic.user = result.usersMap[topic.uid];
+			} else if (topic.uid === 0) {
+				// `user.guestData` contains the proper guest username/displayname ([[global:guest]])
+				topic.user = { ...user.guestData };
+			} else {
+				topic.user = topic.user && typeof topic.user === 'object' ? topic.user : {};
+			}
+
+			// Ensure username/displayname exist (fallback to each other or 'Anonymous')
+			topic.user.username = topic.user.username || 'Anonymous';
+			topic.user.displayname = topic.user.displayname || topic.user.username || 'Anonymous';
 			if (result.tidToGuestHandle[topic.tid]) {
 				topic.user.username = validator.escape(result.tidToGuestHandle[topic.tid]);
 				topic.user.displayname = topic.user.username;
