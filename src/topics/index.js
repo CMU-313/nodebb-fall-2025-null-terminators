@@ -338,15 +338,12 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 		return topics;
 	}
 
-	console.log('[TOPIC-VISIBILITY] 🔍 Filtering', topics.length, 'topics by visibility for uid:', uid);
-
 	const posts = require('../posts');
 
 	// Get main post IDs for all topics
 	const mainPids = topics.map(topic => topic.mainPid).filter(Boolean);
 
 	if (!mainPids.length) {
-		console.log('[TOPIC-VISIBILITY] ⚠️ No main posts found, returning all topics');
 		return topics;
 	}
 
@@ -365,7 +362,6 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 	const filteredTopics = await Promise.all(topics.map(async (topic) => {
 		if (!topic || !topic.mainPid) {
 			// No main post, allow through
-			console.log('[TOPIC-VISIBILITY] 🌍 Topic', topic?.tid, 'has no main post, allowing');
 			return topic;
 		}
 
@@ -373,7 +369,6 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 
 		if (!mainPost || !mainPost.visibleTo) {
 			// No visibility restriction, allow through
-			console.log('[TOPIC-VISIBILITY] 🌍 Topic', topic.tid, 'main post has no visibility restriction');
 			return topic;
 		}
 
@@ -383,17 +378,11 @@ Topics.filterTopicsByVisibility = async function (topics, uid) {
 
 		const hasAccess = filteredPosts.length > 0;
 
-		console.log('[TOPIC-VISIBILITY]', hasAccess ? '✅' : '❌',
-			'Topic', topic.tid, '(main post', topic.mainPid, ')',
-			'visibility:', mainPost.visibleTo, 'User access:', hasAccess);
-
 		return hasAccess ? topic : null;
 	}));
 
 	// Remove null entries (topics user can't access)
 	const result = filteredTopics.filter(Boolean);
-
-	console.log('[TOPIC-VISIBILITY] 📊 Filtered', topics.length, 'topics down to', result.length, 'for uid', uid);
 
 	return result;
 };

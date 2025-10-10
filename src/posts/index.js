@@ -50,12 +50,8 @@ Posts.getPostsByPids = async function (pids, uid) {
 	let posts = await Posts.getPostsData(pids);
 	posts = await Promise.all(posts.map(Posts.parsePost));
 
-	console.log('[POST-FILTERING] 🔍 Filtering posts by visibility for uid:', uid, 'Posts before filtering:', posts.length);
-
 	// Filter posts based on visibility
 	posts = await Posts.filterPostsByVisibility(posts, uid);
-
-	console.log('[POST-FILTERING] ✅ Posts after visibility filtering:', posts.length);
 
 	const data = await plugins.hooks.fire('filter:post.getPosts', { posts: posts, uid: uid });
 	if (!data || !Array.isArray(data.posts)) {
@@ -106,12 +102,9 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 	}
 	userGroups.push('all'); // Everyone can see 'all' posts
 
-	console.log('[POST-VISIBILITY] 👥 User groups for uid', uid, ':', userGroups);
-
 	const filteredPosts = posts.filter((post) => {
 		if (!post || !post.visibleTo) {
 			// No visibility restriction, show to everyone
-			console.log('[POST-VISIBILITY] 🌍 Post', post?.pid, 'has no visibility restriction');
 			return true;
 		}
 
@@ -120,32 +113,24 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 			visibleTo = Array.isArray(post.visibleTo) ? post.visibleTo : JSON.parse(post.visibleTo);
 		} catch (e) {
 			// If parsing fails, assume it's public
-			console.log('[POST-VISIBILITY] ❌ Failed to parse visibleTo for post', post.pid, ':', post.visibleTo);
 			return true;
 		}
 
 		// Check if post is public
 		if (visibleTo.includes('all')) {
-			console.log('[POST-VISIBILITY] 🌍 Post', post.pid, 'is public');
 			return true;
 		}
 
 		// Check if user owns the post
 		if (post.uid && post.uid === parseInt(uid, 10)) {
-			console.log('[POST-VISIBILITY] 👤 Post', post.pid, 'owned by user', uid);
 			return true;
 		}
 
 		// Check if user has access to any of the required groups
 		const hasAccess = visibleTo.some(group => userGroups.includes(group));
 
-		console.log('[POST-VISIBILITY]', hasAccess ? '✅' : '❌',
-			'Post', post.pid, 'visibility:', visibleTo, 'User access:', hasAccess);
-
 		return hasAccess;
 	});
-
-	console.log('[POST-VISIBILITY] 📊 Filtered', posts.length, 'posts down to', filteredPosts.length, 'for uid', uid);
 
 	return filteredPosts;
 };
