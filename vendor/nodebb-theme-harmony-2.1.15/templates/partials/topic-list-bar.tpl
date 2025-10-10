@@ -34,15 +34,19 @@
                     class="btn btn-ghost btn-sm"
                     title="Date Filtering"
 					onclick="toggleDateFilter()">
-                    <i class="fa fa-calendar text-primary" style="color: blue;"></i>
-                    <span style="font-weight: 600;">Date Filtering</span>
+                    <i class="fa fa-calendar text-primary me-2" style="color: blue;"></i>
+                    <span style="font-weight: 500;">Date Filtering</span>
                 </a>
-											
+
+				<!-- This is the container that the button opens with 3 text inputs.
+					Initial skeleton from copilot was a button opening a button and adapted it to be 3 text inputs.
+					Help with alignment was also done with the help of copilot to manually align the container to the 
+					bar in nodebb -->							
 				<div id="date-filter-container" class="border rounded bg-light p-0 m-0" style="display: none; height: 30px;">
 					<div class="input-group input-group-sm align-items-center">
-        				<input type="text" class="form-control" style = "width: 70px;" placeholder="Month" aria-label="Date Filter" aria-describedby="date-filter-label">
-						<input type="text" class="form-control" style = "width: 70px;" placeholder="Day" aria-label="Date Filter" aria-describedby="date-filter-label">
-						<input type="text" class="form-control" style = "width: 70px;" placeholder="Year" aria-label="Date Filter" aria-describedby="date-filter-label">
+        				<input type="text" class="form-control" style = "width: 70px;" placeholder="Month" aria-label="Month Input">
+						<input type="text" class="form-control" style = "width: 70px;" placeholder="Day" aria-label="Day Input">
+						<input type="text" class="form-control" style = "width: 70px;" placeholder="Year" aria-label="Year Input">
 						<button class="btn btn-primary" type="button" id="submit-date-filter">Submit</button>
     				</div>
 				</div>
@@ -75,6 +79,8 @@
 	</nav>
 </div>
 
+<!-- This is just a more readable version of code made by CoPilot.
+When the code was given the boolean was made through boolean symbols and not an if statement -->
 <script>
     function toggleDateFilter() {
         const container = document.getElementById('date-filter-container');
