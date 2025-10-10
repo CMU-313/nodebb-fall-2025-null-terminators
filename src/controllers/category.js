@@ -112,7 +112,6 @@ categoryController.get = async function (req, res, next) {
 
 	// Run search to return only matched topics when search term is present
 	if (searchTerm) {
-		console.log('hereeee', searchTerm);
 		const searchResults = await topics.searchInCategory(searchTerm, cid, req.uid);
 		// Slicing array of results for pagination - get first page (from Copilot)
 		categoryData.topics = searchResults.slice(start, stop + 1);
