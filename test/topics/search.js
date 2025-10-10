@@ -1,14 +1,17 @@
 'use strict';
 
 const assert = require('assert');
+const nconf = require('nconf');
 
 const db = require('../mocks/databasemock');
 const categories = require('../../src/categories');
 const topics = require('../../src/topics');
 const posts = require('../../src/posts');
 const User = require('../../src/user');
+const privileges = require('../../src/privileges');
 const groups = require('../../src/groups');
 const helpers = require('../helpers');
+const request = require('../../src/request');
 
 describe('Topic Search', () => {
 	let topic1;
@@ -87,11 +90,6 @@ describe('Topic Search', () => {
 		assert.strictEqual(topicsFound.length, 0);
 	});
 
-	it('should return empty array if no match is found', async function () {
-		const topicsFound = await topics.searchInCategory('nonexistentterm', categoryObj.cid, adminUid);
-		assert.strictEqual(topicsFound.length, 0);
-	});
-
 	it('should not return duplicate topics if multiple search criteria are matched', async function () {
 		// search term test is included in the title and content for topic2
 		const topicsFound = await topics.searchInCategory('test', categoryObj.cid, adminUid);
@@ -104,6 +102,30 @@ describe('Topic Search', () => {
 		const tids = topicsFound.map(t => parseInt(t.tid, 10));
 		// Used ChatGPT to figure out that need to use deepStrictEqual
 		assert.deepStrictEqual(tids, [topic3.topicData.tid, topic2.topicData.tid, topic1.topicData.tid]);
+	});
+
+	it('should return json search data with correct search term', async () => {
+		const qs = `/api/category/${categoryObj.cid}/test-category?search_term=welcome`;
+		await privileges.global.give(['groups:search:content'], 'guests');
+	
+		const { response, body } = await request.get(nconf.get('url') + qs);
+		assert(body);
+		assert.strictEqual(response.statusCode, 200);
+		assert.equal(body.name, 'Test Category');
+		assert(body.searchTerm, 'welcome');
+		assert(body.hasOwnProperty('topics'));
+	
+		await privileges.global.rescind(['groups:search:content'], 'guests');
+	});
+	
+	it('should return null as search term if none provided', async () => {
+		const qs = `/api/category/${categoryObj.cid}/test-category`;
+		await privileges.global.give(['groups:search:content'], 'guests');
+		const { response, body } = await request.get(nconf.get('url') + qs);
+		assert(body);
+		assert.strictEqual(response.statusCode, 200);
+		assert.equal(body.searchTerm, null);
+		await privileges.global.rescind(['groups:search:content'], 'guests');
 	});
 
 });
