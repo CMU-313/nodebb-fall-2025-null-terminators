@@ -21,7 +21,6 @@ const plugins = require('../src/plugins');
 const utils = require('../src/utils');
 const slugify = require('../src/slugify');
 const helpers = require('./helpers');
-const apiTopics = require('../src/api/topics');
 
 const sleep = util.promisify(setTimeout);
 
@@ -1652,7 +1651,6 @@ describe('Controllers', () => {
 			assert.deepStrictEqual(data.selectedCategory.cid, 1);
 			assert.deepStrictEqual(data.selectedCids, [1]);
 		});
-
 
 		it('should load categories by states', async () => {
 			const helpers = require('../src/controllers/helpers');
