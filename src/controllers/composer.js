@@ -40,18 +40,6 @@ exports.get = async function (req, res, callback) {
 };
 
 exports.post = async function (req, res) {
-	console.log('[API-CONTROLLER] 📥 Composer POST Request Received:', {
-		uid: req.uid,
-		bodyKeys: Object.keys(req.body),
-		hasContent: !!req.body.content,
-		hasCid: !!req.body.cid,
-		hasTid: !!req.body.tid,
-		hasVisibleTo: !!req.body.visibleTo,
-		visibleToValue: req.body.visibleTo,
-		url: req.url,
-		method: req.method,
-	});
-
 	const { body } = req;
 	const data = {
 		uid: req.uid,
@@ -64,18 +52,13 @@ exports.post = async function (req, res) {
 
 	// Add visibleTo if provided
 	if (body.visibleTo) {
-		console.log('[API-CONTROLLER] 🔍 Processing visibleTo field:', body.visibleTo, 'Type:', typeof body.visibleTo);
 		try {
 			data.visibleTo = Array.isArray(body.visibleTo) ?
 				body.visibleTo : JSON.parse(body.visibleTo);
-			console.log('[API-CONTROLLER] ✅ Parsed visibleTo successfully:', data.visibleTo);
 		} catch (e) {
-			console.warn('[API-CONTROLLER] ❌ Failed to parse visibleTo, using default:', e.message);
 			// If parsing fails, default to public
 			data.visibleTo = ['all'];
 		}
-	} else {
-		console.log('[API-CONTROLLER] 🔒 No visibleTo provided, will use default visibility');
 	}
 	req.body.noscript = 'true';
 
@@ -95,48 +78,23 @@ exports.post = async function (req, res) {
 		let result;
 		if (body.tid) {
 			data.tid = body.tid;
-			console.log('[API-CONTROLLER] 💬 Processing REPLY:', {
-				tid: data.tid,
-				uid: data.uid,
-				hasContent: !!data.content,
-				visibleTo: data.visibleTo,
-				contentPreview: data.content?.substring(0, 100) + '...',
-			});
 			result = await queueOrPost(topics.reply, data);
 		} else if (body.cid) {
 			data.cid = body.cid;
 			data.title = body.title;
 			data.tags = [];
 			data.thumb = '';
-			console.log('[API-CONTROLLER] 📝 Processing NEW TOPIC:', {
-				cid: data.cid,
-				title: data.title,
-				uid: data.uid,
-				hasContent: !!data.content,
-				visibleTo: data.visibleTo,
-				contentPreview: data.content?.substring(0, 100) + '...',
-			});
 			result = await queueOrPost(topics.post, data);
 		} else {
-			console.error('[API-CONTROLLER] ❌ Invalid data - missing both tid and cid');
 			throw new Error('[[error:invalid-data]]');
 		}
 		if (!result) {
-			console.error('[API-CONTROLLER] ❌ No result returned from backend');
 			throw new Error('[[error:invalid-data]]');
 		}
 
 		if (result.queued) {
-			console.log('[API-CONTROLLER] ⏱️ Post queued for moderation:', { queued: true });
 			return res.redirect(`${nconf.get('relative_path') || '/'}?noScriptMessage=[[success:post-queued]]`);
 		}
-
-		console.log('[API-CONTROLLER] ✅ Post created successfully:', {
-			pid: result.pid,
-			tid: result.topicData?.tid,
-			slug: result.topicData?.slug,
-			queued: false,
-		});
 
 		user.updateOnlineUsers(req.uid);
 		let path = nconf.get('relative_path');
@@ -145,13 +103,8 @@ exports.post = async function (req, res) {
 		} else if (result.topicData) {
 			path += `/topic/${result.topicData.slug}`;
 		}
-		console.log('[API-CONTROLLER] 🔄 Redirecting to:', path);
 		res.redirect(path);
 	} catch (err) {
-		console.error('[API-CONTROLLER] ❌ Error processing request:', {
-			error: err.message,
-			stack: err.stack?.substring(0, 500) + '...',
-		});
 		helpers.noScriptErrors(req, res, err.message, 400);
 	}
 };
