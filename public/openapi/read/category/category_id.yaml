@@ -68,8 +68,6 @@ get:
                     type: boolean
                   isIgnored:
                     type: boolean
-                  isSearchResults:
-                    type: boolean
                   hasFollowers:
                     type: boolean
                     nullable: true
@@ -104,6 +102,9 @@ get:
                         type: boolean
                       isAdminOrMod:
                         type: boolean
+                  searchTerm:
+                    type: string
+                    nullable: true
                   showSelect:
                     type: boolean
                   showTopicTools:
