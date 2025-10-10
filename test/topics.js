@@ -2506,6 +2506,7 @@ describe('Topic\'s', () => {
 			assert(!score);
 		});
 	});
+
 });
 
 describe('Topics\'', async () => {

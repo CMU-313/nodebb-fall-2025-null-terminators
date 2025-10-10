@@ -35,6 +35,7 @@ Topics.thumbs = require('./thumbs');
 require('./bookmarks')(Topics);
 require('./merge')(Topics);
 Topics.events = require('./events');
+require('./filtering')(Topics);
 
 Topics.exists = async function (tids) {
 	return await db.exists(

@@ -357,3 +357,17 @@ topicsAPI.move = async (caller, { tid, cid }) => {
 
 	await categories.onTopicsMoved(cids);
 };
+
+topicsAPI.getTopicsByDate = async function (caller, data) {
+	const { date, cid } = data;
+
+	if (!date) {
+		throw new Error('[[error:invalid-data]]');
+	}
+
+	return await topics.getTopicsByDate({
+		date: date,
+		uid: caller.uid,
+		cid: cid,
+	});
+};
