@@ -158,7 +158,7 @@ categoryController.get = async function (req, res, next) {
 						}
 					}
 				}
-			} catch (e) { /* optional: console.warn('[anon][category] teaser mask failed', e); */ }
+			} catch (e) { /* console.warn('[anon][category] teaser mask failed', e); */ }
 
 			// Mask header/topic owner when main post is anonymous
 			try {
@@ -186,11 +186,10 @@ categoryController.get = async function (req, res, next) {
 						}
 					}
 				}
-			} catch (e) { /* optional: console.warn('[anon][category] header mask failed', e); */ }
+			} catch (e) { /* console.warn('[anon][category] header mask failed', e); */ }
 		}));
-	} catch (e) { /* optional: console.warn('[anon][category] masking failed', e); */ }
+	} catch (e) { /* console.warn('[anon][category] masking failed', e); */ }
 
-	// (Optional) If you re-enable masking here, ensure the helper is in use to avoid TS unused warnings.
 
 	categoryData.tagWhitelist = categories.filterTagWhitelist(categoryData.tagWhitelist, userPrivileges.isAdminOrMod);
 
