@@ -201,6 +201,12 @@ get:
                                         type: string
                                       title:
                                         type: string
+                                  visibleTo:
+                                    type: array
+                                    items:
+                                      type: string
+                                    description: Array of group names that can see this post
+                                    nullable: true
                             teaser:
                               type: object
                               properties:

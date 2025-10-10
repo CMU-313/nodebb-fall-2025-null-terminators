@@ -65,6 +65,7 @@ categoriesController.list = async function (req, res) {
 	await Promise.all([
 		categories.getRecentTopicReplies(categoryData, req.uid, req.query),
 		categories.setUnread(tree, pageCids.concat(childCids), req.uid),
+		categories.calculateVisibleCounts(tree, req.uid),
 	]);
 
 	const data = {

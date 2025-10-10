@@ -13,6 +13,7 @@ module.exports = function () {
 	const multipart = require('connect-multiparty');
 	const multipartMiddleware = multipart();
 
+	setupApiRoute(router, 'get', '/date', [...middlewares, middleware.checkRequired.bind(null, ['date', 'cid'])], controllers.write.topics.getByDate);
 	setupApiRoute(router, 'post', '/', [middleware.checkRequired.bind(null, ['cid', 'title', 'content'])], controllers.write.topics.create);
 	setupApiRoute(router, 'get', '/:tid', [], controllers.write.topics.get);
 	setupApiRoute(router, 'post', '/:tid', [middleware.checkRequired.bind(null, ['content']), middleware.assert.topic], controllers.write.topics.reply);
