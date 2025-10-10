@@ -238,6 +238,34 @@ describe('Topic\'s', () => {
 		});
 	});
 
+	describe('anonymous posts', () => {
+		it('should mask anonymous topic post for non-owners and show real user to owner', async () => {
+			// create an anonymous topic as admin
+			const category = await categories.create({ name: 'anon-topic-category' });
+			const created = await apiTopics.create({ uid: adminUid }, {
+				title: 'anonymous topic',
+				cid: category.cid,
+				content: 'secret anonymous content',
+				anonymous: true,
+			});
+			const tid = created.tid || (created.topicData && created.topicData.tid) || (created.topic && created.topic.tid);
+
+			// non-owner should see the post masked
+			const anonView = await apiTopics.get({ uid: fooUid }, { tid });
+			assert(anonView);
+			// posts array expected and the main post should be anonymous
+			assert.strictEqual(anonView.posts[0].anonymous, true);
+			assert.strictEqual(anonView.posts[0].user.uid, 0);
+			assert.strictEqual(anonView.posts[0].user.username, 'Anonymous');
+
+			// owner should see their real username
+			const ownerView = await apiTopics.get({ uid: adminUid }, { tid });
+			assert(ownerView);
+			assert.strictEqual(ownerView.posts[0].anonymous, true);
+			assert.notStrictEqual(ownerView.posts[0].user.username, 'Anonymous');
+		});
+	});
+
 	describe('.reply', () => {
 		let newTopic;
 		let newPost;

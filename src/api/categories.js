@@ -59,11 +59,14 @@ async function maskTopicUsersIfAnonymous(caller, topic) {
 	if (teaserMasked) {
 		if (!topic.teaser) topic.teaser = {};
 		topic.teaser.user = teaserMasked;
+		// Mirror controller behavior: mark teaser as anonymous for templates/clients
+		topic.teaser.anonymous = true;
 	}
 
 	const lastMasked = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
 	if (lastMasked) {
 		if (topic.lastpost) topic.lastpost.user = lastMasked;
+		if (topic.lastpost) topic.lastpost.anonymous = true;
 	}
 
 	return {
