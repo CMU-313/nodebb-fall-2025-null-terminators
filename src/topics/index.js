@@ -155,7 +155,10 @@ Topics.getTopicsByTids = async function (tids, options) {
 
 	const filteredTopics = result.topics.filter(topic => topic && topic.category && !topic.category.disabled);
 
-	const hookResult = await plugins.hooks.fire('filter:topics.get', { topics: filteredTopics, uid: uid });
+	// Filter topics based on visibility of their main posts
+	const visibilityFilteredTopics = await Topics.filterTopicsByVisibility(filteredTopics, uid);
+
+	const hookResult = await plugins.hooks.fire('filter:topics.get', { topics: visibilityFilteredTopics, uid: uid });
 	return hookResult.topics;
 };
 
@@ -329,6 +332,60 @@ Topics.search = async function (tid, term) {
 		ids: [],
 	});
 	return Array.isArray(result) ? result : result.ids;
+};
+
+Topics.filterTopicsByVisibility = async function (topics, uid) {
+	if (!Array.isArray(topics) || !topics.length) {
+		return topics;
+	}
+
+	const posts = require('../posts');
+
+	// Get main post IDs for all topics
+	const mainPids = topics.map(topic => topic.mainPid).filter(Boolean);
+
+	if (!mainPids.length) {
+		return topics;
+	}
+
+	// Get main posts with visibility data and uid
+	const mainPosts = await posts.getPostsFields(mainPids, ['pid', 'visibleTo', 'uid']);
+
+	// Create a map of pid -> post data for quick lookup
+	const pidToPost = {};
+	mainPosts.forEach((post) => {
+		if (post && post.pid) {
+			pidToPost[post.pid] = post;
+		}
+	});
+
+	// Filter topics using the same visibility logic as posts
+	const filteredTopics = await Promise.all(topics.map(async (topic) => {
+		if (!topic || !topic.mainPid) {
+			// No main post, allow through
+			return topic;
+		}
+
+		const mainPost = pidToPost[topic.mainPid];
+
+		if (!mainPost || !mainPost.visibleTo) {
+			// No visibility restriction, allow through
+			return topic;
+		}
+
+		// Apply the same visibility filtering as posts (include uid for ownership check)
+		const mockPost = { pid: mainPost.pid, visibleTo: mainPost.visibleTo, uid: mainPost.uid };
+		const filteredPosts = await posts.filterPostsByVisibility([mockPost], uid);
+
+		const hasAccess = filteredPosts.length > 0;
+
+		return hasAccess ? topic : null;
+	}));
+
+	// Remove null entries (topics user can't access)
+	const result = filteredTopics.filter(Boolean);
+
+	return result;
 };
 
 require('../promisify')(Topics);

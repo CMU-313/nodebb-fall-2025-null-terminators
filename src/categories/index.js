@@ -237,6 +237,69 @@ function calculateTopicPostCount(category) {
 }
 Categories.calculateTopicPostCount = calculateTopicPostCount;
 
+async function calculateVisibleCounts(category, uid) {
+	if (!category) {
+		return;
+	}
+
+	const topics = require('../topics');
+	const posts = require('../posts');
+	const db = require('../database');
+	const user = require('../user');
+
+	// Check if user is admin - admins see everything
+	const isAdmin = await user.isAdministrator(uid);
+	if (isAdmin) {
+		// No filtering needed for admins, keep existing counts
+		if (Array.isArray(category.children)) {
+			await Promise.all(category.children.map(child => calculateVisibleCounts(child, uid)));
+		}
+		return;
+	}
+
+	// Get all topic and post IDs for this category
+	const [tids, pids] = await Promise.all([
+		db.getSortedSetRange(`cid:${category.cid}:tids`, 0, -1),
+		db.getSortedSetRange(`cid:${category.cid}:pids`, 0, -1),
+	]);
+
+	// Get topic and post data with visibility fields
+	const [topicData, postData] = await Promise.all([
+		topics.getTopicsFields(tids, ['tid', 'mainPid', 'uid']),
+		posts.getPostsFields(pids, ['pid', 'uid', 'visibleTo']),
+	]);
+
+	// Filter by visibility
+	const [visibleTopics, visiblePosts] = await Promise.all([
+		topics.filterTopicsByVisibility(topicData, uid),
+		posts.filterPostsByVisibility(postData, uid),
+	]);
+
+	// Update counts for this category only (not including children yet)
+	let visibleTopicCount = visibleTopics.length;
+	let visiblePostCount = visiblePosts.length;
+
+	// Recursively calculate for children and add their counts
+	if (Array.isArray(category.children)) {
+		await Promise.all(category.children.map(async (child) => {
+			await calculateVisibleCounts(child, uid);
+			visibleTopicCount += parseInt(child.totalTopicCount, 10) || 0;
+			visiblePostCount += parseInt(child.totalPostCount, 10) || 0;
+		}));
+	}
+
+	// Set the filtered counts
+	category.totalTopicCount = visibleTopicCount;
+	category.totalPostCount = visiblePostCount;
+}
+Categories.calculateVisibleCounts = async function (categories, uid) {
+	if (!Array.isArray(categories)) {
+		await calculateVisibleCounts(categories, uid);
+		return;
+	}
+	await Promise.all(categories.map(category => calculateVisibleCounts(category, uid)));
+};
+
 Categories.getParents = async function (cids) {
 	const categoriesData = await Categories.getCategoriesFields(cids, ['parentCid']);
 	const parentCids = categoriesData.filter(c => c && c.parentCid).map(c => c.parentCid);
