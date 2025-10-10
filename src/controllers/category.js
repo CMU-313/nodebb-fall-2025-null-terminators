@@ -126,6 +126,9 @@ categoryController.get = async function (req, res, next) {
 		categories.setUnread([categoryData], allCategories.map(c => c.cid).concat(cid), req.uid),
 	]);
 
+	// Calculate visible counts for this category and children
+	await categories.calculateVisibleCounts(categoryData, req.uid);
+
 	if (categoryData.children.length) {
 		await categories.getRecentTopicReplies(allCategories, req.uid, req.query);
 		categoryData.subCategoriesLeft = Math.max(0, categoryData.children.length - categoryData.subCategoriesPerPage);

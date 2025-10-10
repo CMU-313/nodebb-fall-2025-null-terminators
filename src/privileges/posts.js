@@ -5,6 +5,7 @@ const _ = require('lodash');
 
 const db = require('../database');
 const meta = require('../meta');
+const groups = require('../groups');
 const posts = require('../posts');
 const topics = require('../topics');
 const user = require('../user');
@@ -106,6 +107,9 @@ privsPosts.filter = async function (privilege, pids, uid) {
 			scheduled: post.topic.scheduled,
 		}, {}, canViewDeleted[post.topic.cid], canViewScheduled[post.topic.cid]) || results.isAdmin)
 	)).map(post => post.pid);
+
+	// Filter by group visibility
+	pids = await privsPosts.filterByVisibility(pids, uid);
 
 	const data = await plugins.hooks.fire('filter:privileges.posts.filter', {
 		privilege: privilege,
@@ -245,3 +249,50 @@ async function isAdminOrMod(pid, uid) {
 	const cid = await posts.getCidByPid(pid);
 	return await privsCategories.isAdminOrMod(cid, uid);
 }
+
+privsPosts.filterByVisibility = async function (pids, uid) {
+	if (!Array.isArray(pids) || !pids.length) {
+		return [];
+	}
+
+	// Get post data including visibleTo field
+	const postData = await posts.getPostsFields(pids, ['uid', 'visibleTo']);
+
+	// Get user's group memberships (if not a guest)
+	let userGroups = [];
+	if (parseInt(uid, 10) > 0) {
+		const userGroupData = await groups.getUserGroups([uid]);
+		userGroups = userGroupData[0] ? userGroupData[0].map(g => g.name) : [];
+	}
+
+	// Check if user is admin (admins can see all posts)
+	const isAdmin = await user.isAdministrator(uid);
+	if (isAdmin) {
+		return pids;
+	}
+
+	const allowedPids = [];
+
+	for (let i = 0; i < postData.length; i++) {
+		const post = postData[i];
+		const pid = pids[i];
+
+		if (!post) {
+			continue;
+		}
+
+		// Combine all visibility checks into one if statement
+		if (
+			!post.visibleTo || // No visibleTo field, treat as public
+			post.visibleTo.includes('all') || // Public post
+			post.uid === parseInt(uid, 10) || // User's own post
+			(post.visibleTo && post.visibleTo.some(
+				groupName => userGroups.includes(groupName)
+			)) // User in allowed group
+		) {
+			allowedPids.push(pid);
+		}
+	}
+
+	return allowedPids;
+};

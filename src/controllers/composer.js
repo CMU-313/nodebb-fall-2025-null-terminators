@@ -49,6 +49,17 @@ exports.post = async function (req, res) {
 		handle: body.handle,
 		fromQueue: false,
 	};
+
+	// Add visibleTo if provided
+	if (body.visibleTo) {
+		try {
+			data.visibleTo = Array.isArray(body.visibleTo) ?
+				body.visibleTo : JSON.parse(body.visibleTo);
+		} catch (e) {
+			// If parsing fails, default to public
+			data.visibleTo = ['all'];
+		}
+	}
 	req.body.noscript = 'true';
 
 	if (!data.content) {
@@ -80,9 +91,11 @@ exports.post = async function (req, res) {
 		if (!result) {
 			throw new Error('[[error:invalid-data]]');
 		}
+
 		if (result.queued) {
 			return res.redirect(`${nconf.get('relative_path') || '/'}?noScriptMessage=[[success:post-queued]]`);
 		}
+
 		user.updateOnlineUsers(req.uid);
 		let path = nconf.get('relative_path');
 		if (result.pid) {

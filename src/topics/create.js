@@ -13,6 +13,7 @@ const user = require('../user');
 const activitypub = require('../activitypub');
 const meta = require('../meta');
 const posts = require('../posts');
+const groups = require('../groups');
 const privileges = require('../privileges');
 const categories = require('../categories');
 const translator = require('../translator');
@@ -126,6 +127,12 @@ module.exports = function (Topics) {
 		postData.tid = tid;
 		postData.ip = data.req ? data.req.ip : null;
 		postData.isMain = true;
+
+		// Validate visibleTo field for new topics (same validation as replies)
+		if (postData.visibleTo !== undefined) {
+			postData.visibleTo = await validateVisibleToForReply(postData.visibleTo, uid);
+		}
+
 		postData = await posts.create(postData);
 		postData = await onNewPost(postData, data);
 
@@ -206,6 +213,30 @@ module.exports = function (Topics) {
 		}
 
 		data.ip = data.req ? data.req.ip : null;
+
+		// Check for visibility inheritance from main post
+		const mainPost = await posts.getPostFields(topicData.mainPid, ['visibleTo']);
+		let mainPostVisibility = null;
+
+		if (mainPost && mainPost.visibleTo) {
+			try {
+				mainPostVisibility = JSON.parse(mainPost.visibleTo);
+			} catch (e) {
+				// Failed to parse main post visibility, mainPostVisibility will remain null
+			}
+		}
+
+		// Apply inheritance rules
+		if (mainPostVisibility && !mainPostVisibility.includes('all')) {
+			// Rule 1: Restricted topic → All replies inherit restriction
+			data.visibleTo = mainPostVisibility;
+		} else {
+			// Rule 2: Public topic → Allow custom reply visibility
+			if (data.visibleTo !== undefined) {
+				data.visibleTo = await validateVisibleToForReply(data.visibleTo, uid);
+			}
+		}
+
 		let postData = await posts.create(data);
 		postData = await onNewPost(postData, data);
 
@@ -324,5 +355,28 @@ module.exports = function (Topics) {
 		if (!canReply) {
 			throw new Error('[[error:no-privileges]]');
 		}
+	}
+
+	async function validateVisibleToForReply(visibleTo, uid) {
+		// If reply is public, no validation needed
+		if (!visibleTo || !Array.isArray(visibleTo) || visibleTo.includes('all')) {
+			return ['all'];
+		}
+
+		// Guests can only create public posts
+		if (parseInt(uid, 10) === 0) {
+			throw new Error('[[error:guests-cant-create-restricted-posts]]');
+		}
+
+		// Validate that all specified groups exist
+		const groupsExist = await groups.exists(visibleTo);
+		const invalidGroups = visibleTo.filter((groupName, index) =>
+			groupName !== 'all' && !groupsExist[index]);
+
+		if (invalidGroups.length > 0) {
+			throw new Error(`[[error:groups-do-not-exist, ${invalidGroups.join(', ')}]]`);
+		}
+
+		return visibleTo;
 	}
 };

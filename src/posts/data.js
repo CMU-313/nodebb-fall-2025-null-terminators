@@ -26,9 +26,17 @@ module.exports = function (Posts) {
 		return result.posts;
 	};
 
-	Posts.getPostData = async function (pid) {
+	Posts.getPostData = async function (pid, uid) {
 		const posts = await Posts.getPostsFields([pid], []);
-		return posts && posts.length ? posts[0] : null;
+		let postData = posts && posts.length ? posts[0] : null;
+
+		// Apply visibility filtering if uid is provided
+		if (postData && uid !== undefined) {
+			const filteredPosts = await Posts.filterPostsByVisibility([postData], uid);
+			postData = filteredPosts.length > 0 ? filteredPosts[0] : null;
+		}
+
+		return postData;
 	};
 
 	Posts.getPostsData = async function (pids) {
@@ -69,6 +77,9 @@ function modifyPost(post, fields) {
 		}
 		if (!fields.length || fields.includes('attachments')) {
 			post.attachments = (post.attachments || '').split(',').filter(Boolean);
+		}
+		if (post.hasOwnProperty('visibleTo')) {
+			post.visibleTo = post.visibleTo ? JSON.parse(post.visibleTo) : ['all'];
 		}
 	}
 }
