@@ -102,7 +102,7 @@ get:
                         type: boolean
                       isAdminOrMod:
                         type: boolean
-                  searchTerm:
+                  search_term:
                     type: string
                     nullable: true
                   showSelect:

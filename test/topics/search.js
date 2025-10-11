@@ -112,7 +112,7 @@ describe('Topic Search', () => {
 		assert(body);
 		assert.strictEqual(response.statusCode, 200);
 		assert.equal(body.name, 'Test Category');
-		assert(body.searchTerm, 'welcome');
+		assert(body.search_term, 'welcome');
 		assert(body.hasOwnProperty('topics'));
 	
 		await privileges.global.rescind(['groups:search:content'], 'guests');
@@ -124,7 +124,7 @@ describe('Topic Search', () => {
 		const { response, body } = await request.get(nconf.get('url') + qs);
 		assert(body);
 		assert.strictEqual(response.statusCode, 200);
-		assert.equal(body.searchTerm, null);
+		assert.equal(body.search_term, null);
 		await privileges.global.rescind(['groups:search:content'], 'guests');
 	});
 

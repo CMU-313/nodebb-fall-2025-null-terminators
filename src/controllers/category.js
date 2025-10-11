@@ -111,7 +111,7 @@ categoryController.get = async function (req, res, next) {
 	}
 
 	// Return search term to template if exists, otherwise null
-	categoryData.searchTerm = searchTerm || null;
+	categoryData.search_term = searchTerm || null;
 
 	// Run search to return only matched topics when search term is present
 	if (searchTerm) {
