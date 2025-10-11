@@ -16,6 +16,7 @@ const helpers = require('./helpers');
 const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
+const topics = require('../topics');
 
 const categoryController = module.exports;
 
@@ -27,6 +28,8 @@ const validSorts = [
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
+	const dateFilter = req.query.date; // Extracting Date Param
+
 	if (cid === '-1') {
 		return helpers.redirect(res, `${res.locals.isAPI ? '/api' : ''}/world?${qs.stringify(req.query)}`);
 	}
@@ -105,6 +108,10 @@ categoryController.get = async function (req, res, next) {
 	});
 	if (!categoryData) {
 		return next();
+	}
+
+	if (dateFilter) {
+		console.log('Date filter detected:', dateFilter);
 	}
 
 	if (topicIndex > Math.max(categoryData.topic_count - 1, 0)) {

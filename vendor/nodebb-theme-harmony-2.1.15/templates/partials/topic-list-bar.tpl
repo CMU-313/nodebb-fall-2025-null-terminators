@@ -42,14 +42,26 @@
 					Initial skeleton from copilot was a button opening a button and adapted it to be 3 text inputs.
 					Help with alignment was also done with the help of copilot to manually align the container to the 
 					bar in nodebb -->							
-				<div id="date-filter-container" class="border rounded bg-light p-0 m-0" style="display: none; height: 30px;">
-					<div class="input-group input-group-sm align-items-center">
-        				<input type="text" class="form-control" style = "width: 70px;" placeholder="Month" aria-label="Month Input">
-						<input type="text" class="form-control" style = "width: 70px;" placeholder="Day" aria-label="Day Input">
-						<input type="text" class="form-control" style = "width: 70px;" placeholder="Year" aria-label="Year Input">
-						<button class="btn btn-primary" type="button" id="submit-date-filter">Submit</button>
-    				</div>
-				</div>
+				<div id="date-filter-container" class="border rounded bg-light p-2 m-0" style="display: none;">
+                    <form id="date-filter-form" method="get" class="d-flex align-items-center gap-2">
+                        <!-- Preserve existing query parameters -->
+                        <!-- IF query.sort -->
+                        <input type="hidden" name="sort" value="{query.sort}" />
+                        <!-- ENDIF query.sort -->
+                        <!-- IF selectedTag -->
+                        <input type="hidden" name="tag" value="{selectedTag.value}" />
+                        <!-- ENDIF selectedTag -->
+                        <!-- IF query.author -->
+                        <input type="hidden" name="author" value="{query.author}" />
+                        <!-- ENDIF query.author -->
+
+                        <!-- Date inputs -->
+                        <input type="number" name="month" class="form-control form-control-sm" style="width: 70px;" placeholder="MM" min="1" max="12" required />
+                        <input type="number" name="day" class="form-control form-control-sm" style="width: 70px;" placeholder="DD" min="1" max="31" required />
+                        <input type="number" name="year" class="form-control form-control-sm" style="width: 85px;" placeholder="YYYY" min="1900" max="2100" required />
+                        <button type="submit" class="btn btn-primary btn-sm">Submit</button>
+                    </form>
+                </div>
 
 				{{{ if (!feeds:disableRSS && rssFeedUrl) }}}
 				<a class="btn btn-ghost btn-sm d-none d-lg-flex align-items-center justify-content-center" target="_blank" href="{rssFeedUrl}" itemprop="item" title="[[global:rss-feed]]"><i class="fa fa-rss text-primary"></i></a>
