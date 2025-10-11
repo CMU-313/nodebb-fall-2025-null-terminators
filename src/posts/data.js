@@ -22,7 +22,13 @@ module.exports = function (Posts) {
 			posts: postData,
 			fields: fields,
 		});
-		result.posts.forEach(post => modifyPost(post, fields));
+		result.posts.forEach((post) => {
+			modifyPost(post, fields);
+			// Ensure anonymous is always boolean
+			if (post && typeof post.anonymous !== 'undefined') {
+				post.anonymous = (post.anonymous === true || post.anonymous === 'true');
+			}
+		});
 		return result.posts;
 	};
 

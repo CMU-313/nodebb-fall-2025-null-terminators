@@ -80,6 +80,9 @@ get:
                                               type: number
                                             timestamp:
                                               type: number
+                                            anonymous:
+                                              type: boolean
+                                              description: Whether this post was created anonymously
                                             content:
                                               type: string
                                             timestampISO:
@@ -146,6 +149,9 @@ get:
                                     type: number
                                   timestamp:
                                     type: number
+                                  anonymous:
+                                    type: boolean
+                                    description: Whether this post was created anonymously
                                   content:
                                     type: string
                                   sourceContent:

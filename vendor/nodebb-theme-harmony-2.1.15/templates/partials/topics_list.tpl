@@ -13,6 +13,7 @@
 				<a class="d-inline-block text-decoration-none avatar-tooltip" title="{./user.displayname}" href="{{{ if ./user.userslug }}}{config.relative_path}/user/{./user.userslug}{{{ else }}}#{{{ end }}}">
 					{buildAvatar(./user, "40px", true)}
 				</a>
+				<!-- name hidden on category/topic list by design -->
 				{{{ if showSelect }}}
 				<div class="checkbox position-absolute top-100 start-50 translate-middle-x pt-2 m-0 d-none d-lg-flex" style="max-width:max-content">
 					<i component="topic/select" class="fa text-muted pointer fa-square-o p-1 hover-visible"></i>

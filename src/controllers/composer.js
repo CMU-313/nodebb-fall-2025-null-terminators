@@ -48,6 +48,7 @@ exports.post = async function (req, res) {
 		content: body.content,
 		handle: body.handle,
 		fromQueue: false,
+		anonymous: !!body.anonymous,
 	};
 
 	// Add visibleTo if provided

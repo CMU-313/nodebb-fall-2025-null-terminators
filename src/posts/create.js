@@ -35,6 +35,7 @@ module.exports = function (Posts) {
 		let postData = {
 			pid, uid, tid, content, sourceContent, timestamp,
 			visibleTo: JSON.stringify(validatedVisibleTo),
+			anonymous: !!data.anonymous,
 		};
 
 		if (data.toPid) {

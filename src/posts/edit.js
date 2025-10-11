@@ -37,6 +37,10 @@ module.exports = function (Posts) {
 		data.content = data.content === null ? postData.content : data.content;
 		const oldContent = postData.sourceContent || postData.content; // for diffing purposes
 		const editPostData = getEditPostData(data, topicData, postData);
+		// Allow toggling anonymous on edit (only when explicitly provided)
+		if (typeof data.anonymous === 'boolean') {
+			editPostData.anonymous = data.anonymous;
+		}
 
 		if (data.handle) {
 			editPostData.handle = data.handle;

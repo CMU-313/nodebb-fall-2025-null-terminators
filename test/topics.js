@@ -238,6 +238,148 @@ describe('Topic\'s', () => {
 		});
 	});
 
+	describe('anonymous posts', () => {
+		it('should mask anonymous topic post for non-owners and show real user to owner', async () => {
+			// create an anonymous topic as admin
+			const category = await categories.create({ name: 'anon-topic-category' });
+			const created = await apiTopics.create({ uid: adminUid }, {
+				title: 'anonymous topic',
+				cid: category.cid,
+				content: 'secret anonymous content',
+				anonymous: true,
+			});
+			const tid = created.tid || (created.topicData && created.topicData.tid) || (created.topic && created.topic.tid);
+
+			// non-owner should see the post masked
+			const anonView = await apiTopics.get({ uid: fooUid }, { tid });
+			assert(anonView);
+			// posts array expected and the main post should be anonymous
+			assert.strictEqual(anonView.posts[0].anonymous, true);
+			assert.strictEqual(anonView.posts[0].user.uid, 0);
+			assert.strictEqual(anonView.posts[0].user.username, 'Anonymous');
+
+			// owner should see their real username
+			const ownerView = await apiTopics.get({ uid: adminUid }, { tid });
+			assert(ownerView);
+			assert.strictEqual(ownerView.posts[0].anonymous, true);
+			assert.notStrictEqual(ownerView.posts[0].user.username, 'Anonymous');
+		});
+	});
+
+	describe('categories masking (anonymous posts)', () => {
+		let cid, tid, adminUid, fooUid;
+
+		before(async () => {
+			// create users and a category
+			adminUid = 1;
+			fooUid = await User.create({ username: 'foo' });
+			const cat = await categories.create({ name: 'anon-cat' });
+			cid = cat.cid;
+
+			// create anonymous topic as admin
+			const created = await apiTopics.create({ uid: adminUid }, {
+				title: 'anon main in category',
+				cid,
+				content: 'top secret',
+				anonymous: true,
+			});
+			tid = created.tid || created.topic?.tid;
+			assert.ok(tid);
+		});
+
+		it('guest sees masked header author on category topics', async () => {
+			const page = await require('../src/api/categories').getTopics({ uid: 0 }, { cid });
+			assert.ok(Array.isArray(page.topics));
+			const t = page.topics.find(t => t.tid === tid);
+			assert.ok(t, 'topic should be listed in category');
+			// header author masked because main post is anonymous
+			assert.strictEqual(t.user?.uid, 0);
+			assert.strictEqual(t.user?.username, 'Anonymous');
+			assert.ok(!t.user?.userslug);
+		});
+
+		it('moderator sees real header author', async () => {
+			// pick a mod uid (or grant mod to fooUid for cid)
+			// e.g., await groups.join('cid:' + cid + ':privileges:mods', fooUid);
+			// or use a known moderator/admin uid
+			const page = await require('../src/api/categories').getTopics({ uid: adminUid }, { cid });
+			const t = page.topics.find(t => t.tid === tid);
+			assert.ok(t);
+			assert.notStrictEqual(t.user?.username, 'Anonymous');
+		});
+	});
+
+	describe('anonymous replies', () => {
+		it('masks anonymous replies to guests and keeps anonymous as boolean', async () => {
+			const cat = await categories.create({ name: 'anon-reply-cat' });
+			const created = await apiTopics.create({ uid: adminUid }, {
+				title: 'normal topic',
+				cid: cat.cid,
+				content: 'seed',
+				anonymous: false,
+			});
+			const tid = created.tid || created.topic?.tid;
+
+			// create anonymous reply
+			const reply = await apiTopics.reply({ uid: adminUid }, {
+				tid,
+				content: 'anon reply',
+				anonymous: true,
+			});
+			assert.ok(reply.pid);
+
+			// fetch as guest and verify masking + boolean type
+			const view = await apiTopics.get({ uid: 0 }, { tid });
+			const anonReply = view.posts.find(p => p.pid === reply.pid);
+			assert.ok(anonReply, 'reply should be present');
+			assert.strictEqual(typeof anonReply.anonymous, 'boolean');
+			assert.strictEqual(anonReply.anonymous, true);
+			assert.strictEqual(anonReply.user?.uid, 0);
+			assert.strictEqual(anonReply.user?.username, 'Anonymous');
+		});
+	});
+
+	// and this one (category list masking)
+	describe('category masking for anonymous posts', () => {
+		it('masks topic header (main post) on category topics for guests', async () => {
+			const cat = await categories.create({ name: 'anon-cat' });
+			const created = await apiTopics.create({ uid: adminUid }, {
+				title: 'anon main in category',
+				cid: cat.cid,
+				content: 'top secret',
+				anonymous: true,
+			});
+			const tid = created.tid || created.topic?.tid;
+
+			const page = await require('../src/api/categories').getTopics({ uid: 0 }, { cid: cat.cid });
+			assert.ok(Array.isArray(page.topics));
+			const t = page.topics.find(t => t.tid === tid);
+			assert.ok(t, 'topic should be listed');
+
+			// header author masked (no userslug, uid 0, Anonymous)
+			assert.strictEqual(t.user?.uid, 0);
+			assert.strictEqual(t.user?.username, 'Anonymous');
+			assert.ok(!t.user?.userslug);
+		});
+
+		it('shows real header author to moderators/admins', async () => {
+			const cat = await categories.create({ name: 'anon-cat-mod' });
+			const created = await apiTopics.create({ uid: adminUid }, {
+				title: 'anon main in category',
+				cid: cat.cid,
+				content: 'top secret',
+				anonymous: true,
+			});
+			const tid = created.tid || created.topic?.tid;
+
+			const page = await require('../src/api/categories').getTopics({ uid: adminUid }, { cid: cat.cid });
+			const t = page.topics.find(t => t.tid === tid);
+			assert.ok(t);
+			assert.notStrictEqual(t.user?.username, 'Anonymous');
+		});
+	});
+
+
 	describe('.reply', () => {
 		let newTopic;
 		let newPost;
