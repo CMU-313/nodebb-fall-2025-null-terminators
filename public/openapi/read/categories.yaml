@@ -80,6 +80,9 @@ get:
                                               type: number
                                             timestamp:
                                               type: number
+                                            anonymous:
+                                              type: boolean
+                                              description: Whether this post was created anonymously
                                             content:
                                               type: string
                                             timestampISO:
@@ -125,6 +128,12 @@ get:
                                                   type: string
                                                 title:
                                                   type: string
+                                            visibleTo:
+                                              type: array
+                                              items:
+                                                type: string
+                                              description: Array of group names that can see this post
+                                              nullable: true
                                       imageClass:
                                         type: string
                                       timesClicked:
@@ -140,6 +149,9 @@ get:
                                     type: number
                                   timestamp:
                                     type: number
+                                  anonymous:
+                                    type: boolean
+                                    description: Whether this post was created anonymously
                                   content:
                                     type: string
                                   sourceContent:
@@ -196,6 +208,12 @@ get:
                                         type: string
                                       title:
                                         type: string
+                                  visibleTo:
+                                    type: array
+                                    items:
+                                      type: string
+                                    description: Array of group names that can see this post
+                                    nullable: true
                             teaser:
                               type: object
                               properties:

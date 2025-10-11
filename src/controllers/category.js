@@ -1,6 +1,5 @@
 'use strict';
 
-
 const nconf = require('nconf');
 const validator = require('validator');
 const qs = require('querystring');
@@ -17,6 +16,7 @@ const utils = require('../utils');
 const translator = require('../translator');
 const analytics = require('../analytics');
 const topics = require('../topics');
+const Posts = require('../posts');
 
 const categoryController = module.exports;
 
@@ -130,6 +130,80 @@ categoryController.get = async function (req, res, next) {
 	}
 
 	categories.modifyTopicsByPrivilege(categoryData.topics, userPrivileges);
+
+	// Ensure each topic has mainPid so we can check main-post anonymity if needed
+	const tids = (categoryData.topics || []).map(t => t && t.tid).filter(Boolean);
+	if (tids.length) {
+		const mains = await topics.getTopicsFields(tids, ['mainPid']);
+		categoryData.topics.forEach((t, i) => {
+			if (t && !t.mainPid) t.mainPid = mains[i] && mains[i].mainPid;
+		});
+	}
+
+	// MASK: apply anonymous masking to teasers and header authors (non-owners/mods)
+	try {
+		await Promise.all((categoryData.topics || []).map(async (t) => {
+			if (!t) return;
+			// Mask teaser user if teaser post is anonymous
+			try {
+				if (t.teaser && t.teaser.pid) {
+					const row = await Posts.getPostFields(t.teaser.pid, ['anonymous', 'uid', 'pid']);
+					const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
+					if (isAnon) {
+						const isOwner = req.uid && parseInt(req.uid, 10) === parseInt(row.uid, 10);
+						const canModerate = await privileges.posts.can('posts:moderate', row.pid, req.uid);
+						if (!isOwner && !canModerate) {
+							// Assign a fresh masked user object to avoid mutating shared user blobs
+							t.teaser.user = {
+								uid: 0,
+								username: 'Anonymous',
+								'username:escaped': 'Anonymous',
+								displayname: 'Anonymous',
+								'displayname:escaped': 'Anonymous',
+								userslug: null,
+								'userslug:escaped': '',
+								picture: null,
+								'icon:text': 'A',
+								'icon:bgColor': '#888',
+							};
+							// mark teaser anonymous for templates
+							t.teaser.anonymous = true;
+						}
+					}
+				}
+			} catch (e) { /* console.warn('[anon][category] teaser mask failed', e); */ }
+
+			// Mask header/topic owner when main post is anonymous
+			try {
+				if (t.mainPid && t.user) {
+					const mainAnon = await Posts.getPostField(t.mainPid, 'anonymous');
+					const isMainAnon = (mainAnon === true || mainAnon === 'true');
+					if (isMainAnon) {
+						const mainOwnerUid = await Posts.getPostField(t.mainPid, 'uid');
+						const isOwner = req.uid && parseInt(req.uid, 10) === parseInt(mainOwnerUid, 10);
+						const canModerate = await privileges.posts.can('posts:moderate', t.mainPid, req.uid);
+						if (!isOwner && !canModerate) {
+							// Assign fresh masked user object for the topic header
+							t.user = {
+								uid: 0,
+								username: 'Anonymous',
+								'username:escaped': 'Anonymous',
+								displayname: 'Anonymous',
+								'displayname:escaped': 'Anonymous',
+								userslug: null,
+								'userslug:escaped': '',
+								picture: null,
+								'icon:text': 'A',
+								'icon:bgColor': '#888',
+							};
+						}
+					}
+				}
+			} catch (e) { /* console.warn('[anon][category] header mask failed', e); */ }
+		}));
+	} catch (e) { /* console.warn('[anon][category] masking failed', e); */ }
+
+
 	categoryData.tagWhitelist = categories.filterTagWhitelist(categoryData.tagWhitelist, userPrivileges.isAdminOrMod);
 
 	const allCategories = [];
@@ -139,6 +213,9 @@ categoryController.get = async function (req, res, next) {
 		buildBreadcrumbs(req, categoryData),
 		categories.setUnread([categoryData], allCategories.map(c => c.cid).concat(cid), req.uid),
 	]);
+
+	// Calculate visible counts for this category and children
+	await categories.calculateVisibleCounts(categoryData, req.uid);
 
 	if (categoryData.children.length) {
 		await categories.getRecentTopicReplies(allCategories, req.uid, req.query);
@@ -186,7 +263,7 @@ categoryController.get = async function (req, res, next) {
 
 	if (meta.config.activitypubEnabled) {
 		// Include link header for richer parsing
-		res.set('Link', `<${nconf.get('url')}/actegory/${cid}>; rel="alternate"; type="application/activity+json"`);
+		res.set('Link', `<${nconf.get('url')}/category/${cid}>; rel="alternate"; type="application/activity+json"`);
 
 		// Category accessible
 		const remoteOk = await privileges.categories.can('read', cid, activitypub._constants.uid);
@@ -271,7 +348,9 @@ function addTags(categoryData, res, currentPage) {
 		res.locals.linkTags.push({
 			rel: 'alternate',
 			type: 'application/activity+json',
-			href: `${nconf.get('url')}/actegory/${categoryData.cid}`,
+			href: `${nconf.get('url')}/category/${categoryData.cid}`,
 		});
 	}
 }
+
+module.exports = categoryController;

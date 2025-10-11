@@ -43,12 +43,15 @@ module.exports = function (Topics) {
 		});
 
 		const [allPostData, callerSettings] = await Promise.all([
-			posts.getPostsFields(teaserPids, ['pid', 'uid', 'timestamp', 'tid', 'content', 'sourceContent']),
+			// include `anonymous` and 'visibleTo' so teasers carry the flag to callers
+			posts.getPostsFields(teaserPids, ['pid', 'uid', 'timestamp', 'tid', 'content', 'sourceContent', 'visibleTo', 'anonymous']),
 			user.getSettings(uid),
 		]);
 		let postData = allPostData.filter(post => post && post.pid);
 		postData = await handleBlocks(uid, postData);
 		postData = postData.filter(Boolean);
+		// Filter posts by visibility
+		postData = await posts.filterPostsByVisibility(postData, uid);
 		const uids = _.uniq(postData.map(post => post.uid));
 		const sortNewToOld = callerSettings.topicPostSort === 'newest_to_oldest';
 		const usersData = await user.getUsersFields(uids, ['uid', 'username', 'userslug', 'picture']);
@@ -103,13 +106,13 @@ module.exports = function (Topics) {
 
 		return await Promise.all(teasers.map(async (postData) => {
 			if (blockedUids.includes(parseInt(postData.uid, 10))) {
-				return await getPreviousNonBlockedPost(postData, blockedUids);
+				return await getPreviousNonBlockedPost(postData, blockedUids, uid);
 			}
 			return postData;
 		}));
 	}
 
-	async function getPreviousNonBlockedPost(postData, blockedUids) {
+	async function getPreviousNonBlockedPost(postData, blockedUids, uid) {
 		let isBlocked = false;
 		let prevPost = postData;
 		const postsPerIteration = 5;
@@ -131,8 +134,10 @@ module.exports = function (Topics) {
 				const mainPid = await Topics.getTopicField(postData.tid, 'mainPid');
 				pids = [mainPid];
 			}
-			const prevPosts = await posts.getPostsFields(pids, ['pid', 'uid', 'timestamp', 'tid', 'content']);
-			isBlocked = prevPosts.every(checkBlocked);
+			const prevPosts = await posts.getPostsFields(pids, ['pid', 'uid', 'timestamp', 'tid', 'content', 'visibleTo']);
+			// Filter by visibility before checking if blocked
+			const visiblePosts = await posts.filterPostsByVisibility(prevPosts, uid);
+			isBlocked = visiblePosts.every(checkBlocked);
 			start += postsPerIteration;
 			stop = start + postsPerIteration - 1;
 		} while (isBlocked && prevPost && prevPost.pid && !checkedAllReplies);

@@ -4,6 +4,7 @@ const validator = require('validator');
 
 const user = require('../user');
 const topics = require('../topics');
+const Posts = require('../posts');
 const categories = require('../categories');
 const posts = require('../posts');
 const meta = require('../meta');
@@ -21,6 +22,33 @@ const websockets = require('../socket.io');
 const socketHelpers = require('../socket.io/helpers');
 
 const topicsAPI = module.exports;
+
+// --- Anonymous masking helper (local copy for topics socket emits) ---
+async function maskAnonymousIfNeeded(caller, post) {
+	if (!post) return;
+	if (typeof post.anonymous === 'undefined') {
+		console.warn('[anon] topicsAPI: post pid=%s missing `anonymous` in payload used for emits', post.pid);
+		return;
+	}
+	if (!post.anonymous) {
+		return;
+	}
+	const selfPost = caller.uid && caller.uid === parseInt(post.uid, 10);
+	const canModerate = await privileges.posts.can('posts:moderate', post.pid, caller.uid);
+	if (selfPost || canModerate) {
+		return;
+	}
+	post.uid = 0;
+	delete post.handle;
+	if (post.user) {
+		post.user.uid = 0;
+		post.user.username = 'Anonymous';
+		post.user.userslug = null;
+		post.user.picture = null;
+		post.user.iconText = 'A';
+		post.user.iconBgColor = '#888';
+	}
+}
 
 topicsAPI._checkThumbPrivileges = async function ({ tid, uid }) {
 	// req.params.tid could be either a tid (pushing a new thumb to an existing topic)
@@ -52,8 +80,78 @@ topicsAPI.get = async function (caller, data) {
 		return null;
 	}
 
+	// Ensure the payload includes posts[] for clients/tests
+	// Load first page (start=0..postsPerPage-1). Adjust as needed.
+	const postsPerPage = (await user.getSettings(caller.uid)).postsPerPage || 20;
+	const set = `tid:${data.tid}:posts`;
+	const reverse = false;
+	await topics.getTopicWithPosts(topic, set, caller.uid, 0, Math.max(0, postsPerPage - 1), reverse);
+
+	// --- masking helpers (local) ---
+	function maskUser(u) {
+		if (!u) return;
+		u.uid = 0;
+		u.username = 'Anonymous';
+		u.displayname = 'Anonymous';
+		u.userslug = null;
+		u.picture = null;
+		u.iconText = 'A';
+		u.iconBgColor = '#888';
+		u['icon:text'] = 'A';
+		u['icon:bgColor'] = '#888';
+		u['username:escaped'] = 'Anonymous';
+		u['displayname:escaped'] = 'Anonymous';
+		u['userslug:escaped'] = '';
+	}
+	async function maskPostForCaller(post) {
+		if (!post) return;
+		// normalize anonymous to boolean if present as string
+		if (typeof post.anonymous !== 'undefined') {
+			const v = post.anonymous;
+			post.anonymous = (v === true || v === 'true' || v === 1 || v === '1');
+		} else if (post.pid) {
+			// backfill if field wasn't included
+			const anon = await Posts.getPostField(post.pid, 'anonymous');
+			post.anonymous = (anon === true || anon === 'true' || anon === 1 || anon === '1');
+		}
+		if (!post.anonymous) return;
+
+		const isOwner = caller.uid && parseInt(caller.uid, 10) === parseInt(post.uid, 10);
+		const canModerate = await privileges.posts.can('posts:moderate', post.pid, caller.uid);
+		if (isOwner || canModerate) return;
+
+		post.uid = 0;
+		if (post.user) maskUser(post.user);
+		if (post.editor) maskUser(post.editor);
+	}
+
+	// Mask all loaded posts and the main post
+	if (Array.isArray(topic.posts)) {
+		await Promise.all(topic.posts.map(p => maskPostForCaller(p)));
+	}
+	if (topic.mainPost) {
+		await maskPostForCaller(topic.mainPost);
+	}
+
+	// Mask header author if the main post is anonymous for this caller
+	try {
+		if (topic.mainPid && topic.user) {
+			const mainAnon = await Posts.getPostField(topic.mainPid, 'anonymous');
+			const isAnon = (mainAnon === true || mainAnon === 'true' || mainAnon === 1 || mainAnon === '1');
+			if (isAnon) {
+				const mainOwnerUid = await Posts.getPostField(topic.mainPid, 'uid');
+				const isOwner = caller.uid && parseInt(caller.uid, 10) === parseInt(mainOwnerUid, 10);
+				const canModerate = await privileges.posts.can('posts:moderate', topic.mainPid, caller.uid);
+				if (!isOwner && !canModerate) maskUser(topic.user);
+			}
+		}
+	} catch (e) {
+		// console.warn('[anon] topicsAPI.get header mask failed', e);
+	}
+
 	return topic;
 };
+
 
 topicsAPI.create = async function (caller, data) {
 	if (!data) {
@@ -61,6 +159,7 @@ topicsAPI.create = async function (caller, data) {
 	}
 
 	const payload = { ...data };
+	payload.anonymous = !!data.anonymous;
 	delete payload.tid;
 	payload.tags = payload.tags || [];
 	apiHelpers.setDefaultPostData(caller, payload);
@@ -80,6 +179,12 @@ topicsAPI.create = async function (caller, data) {
 	}
 
 	const result = await topics.post(payload);
+	try {
+		const anon = await Posts.getPostField(result && result.pid, 'anonymous');
+		if (result) result.anonymous = (anon === true || anon === 'true');
+	} catch (e) {
+		console.warn('[anon] topicsAPI.create: failed to load anonymous for pid=', result && result.pid, e);
+	}
 	await topics.thumbs.migrate(data.uuid, result.topicData.tid);
 
 	socketHelpers.emitToUids('event:new_post', { posts: [result.postData] }, [caller.uid]);
@@ -97,7 +202,9 @@ topicsAPI.reply = async function (caller, data) {
 	if (!data || !data.tid || (meta.config.minimumPostLength !== 0 && !data.content)) {
 		throw new Error('[[error:invalid-data]]');
 	}
+
 	const payload = { ...data };
+	payload.anonymous = !!data.anonymous;
 	delete payload.pid;
 	apiHelpers.setDefaultPostData(caller, payload);
 
@@ -108,6 +215,12 @@ topicsAPI.reply = async function (caller, data) {
 	}
 
 	const postData = await topics.reply(payload);
+	try {
+		const anon = await Posts.getPostField(postData.pid, 'anonymous');
+		postData.anonymous = (anon === true || anon === 'true');
+	} catch (e) {
+		console.warn('[anon] topicsAPI.reply: failed to load anonymous for pid=', postData && postData.pid, e);
+	}
 
 	const result = {
 		posts: [postData],
@@ -119,7 +232,9 @@ topicsAPI.reply = async function (caller, data) {
 	if (caller.uid) {
 		socketHelpers.emitToUids('event:new_post', result, [caller.uid]);
 	} else if (caller.uid === 0) {
-		websockets.in('online_guests').emit('event:new_post', result);
+		const guestResult = JSON.parse(JSON.stringify(result));
+		await maskAnonymousIfNeeded({ uid: 0 }, guestResult.posts[0]);
+		websockets.in('online_guests').emit('event:new_post', guestResult);
 	}
 
 	socketHelpers.notifyNew(caller.uid, 'newPost', result);
@@ -356,4 +471,18 @@ topicsAPI.move = async (caller, { tid, cid }) => {
 	}, { batch: 10 });
 
 	await categories.onTopicsMoved(cids);
+};
+
+topicsAPI.getTopicsByDate = async function (caller, data) {
+	const { date, cid } = data;
+
+	if (!date) {
+		throw new Error('[[error:invalid-data]]');
+	}
+
+	return await topics.getTopicsByDate({
+		date: date,
+		uid: caller.uid,
+		cid: cid,
+	});
 };

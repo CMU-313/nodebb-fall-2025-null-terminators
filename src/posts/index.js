@@ -49,6 +49,10 @@ Posts.getPostsByPids = async function (pids, uid) {
 
 	let posts = await Posts.getPostsData(pids);
 	posts = await Promise.all(posts.map(Posts.parsePost));
+
+	// Filter posts based on visibility
+	posts = await Posts.filterPostsByVisibility(posts, uid);
+
 	const data = await plugins.hooks.fire('filter:post.getPosts', { posts: posts, uid: uid });
 	if (!data || !Array.isArray(data.posts)) {
 		return [];
@@ -71,6 +75,64 @@ Posts.getPidIndex = async function (pid, tid, topicPostSort) {
 		return 0;
 	}
 	return utils.isNumber(index) ? parseInt(index, 10) + 1 : 0;
+};
+
+Posts.filterPostsByVisibility = async function (posts, uid) {
+	if (!Array.isArray(posts) || !posts.length) {
+		return posts;
+	}
+
+	const groups = require('../groups');
+
+	// Get user's groups if user is logged in
+	let userGroups = [];
+	if (uid > 0) {
+		userGroups = await groups.getUserGroups([uid]);
+		userGroups = userGroups[0] || [];
+
+		// Extract group names from group objects (some groups return objects, others strings)
+		userGroups = userGroups.map((group) => {
+			if (typeof group === 'object' && group.name) {
+				return group.name;
+			}
+			return group;
+		});
+
+		userGroups.push('registered-users'); // All logged-in users are in this group
+	}
+	userGroups.push('all'); // Everyone can see 'all' posts
+
+	const filteredPosts = posts.filter((post) => {
+		if (!post || !post.visibleTo) {
+			// No visibility restriction, show to everyone
+			return true;
+		}
+
+		let visibleTo;
+		try {
+			visibleTo = Array.isArray(post.visibleTo) ? post.visibleTo : JSON.parse(post.visibleTo);
+		} catch (e) {
+			// If parsing fails, assume it's public
+			return true;
+		}
+
+		// Check if post is public
+		if (visibleTo.includes('all')) {
+			return true;
+		}
+
+		// Check if user owns the post
+		if (post.uid && post.uid === parseInt(uid, 10)) {
+			return true;
+		}
+
+		// Check if user has access to any of the required groups
+		const hasAccess = visibleTo.some(group => userGroups.includes(group));
+
+		return hasAccess;
+	});
+
+	return filteredPosts;
 };
 
 Posts.getPostIndices = async function (posts, uid) {

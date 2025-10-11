@@ -8,8 +8,38 @@ const meta = require('../meta');
 const pagination = require('../pagination');
 const helpers = require('./helpers');
 const privileges = require('../privileges');
+const Posts = require('../posts');
 
 const categoriesController = module.exports;
+
+async function maskTeaserIfAnonymous(req, cat) {
+	if (!cat || !cat.teaser || !cat.teaser.pid) return false;
+	const row = await Posts.getPostFields(cat.teaser.pid, ['anonymous', 'uid', 'pid']);
+	const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
+	if (!isAnon) return false;
+
+	// owners/mods still see identity (match topics.js behavior)
+	const isOwner = req.uid && parseInt(req.uid, 10) === parseInt(row.uid, 10);
+	const canModerate = await privileges.posts.can('posts:moderate', row.pid, req.uid);
+	if (isOwner || canModerate) return false;
+
+	// mark teaser object as anonymous so downstream logic/templates can rely on it
+	cat.teaser.anonymous = true;
+	// assign a FRESH masked user object so we don't mutate any shared blobs
+	cat.teaser.user = {
+		uid: 0,
+		username: 'Anonymous',
+		'username:escaped': 'Anonymous',
+		displayname: 'Anonymous',
+		'displayname:escaped': 'Anonymous',
+		userslug: null,
+		'userslug:escaped': '',
+		picture: null,
+		'icon:text': 'A',
+		'icon:bgColor': '#888',
+	};
+	return true;
+}
 
 categoriesController.list = async function (req, res) {
 	res.locals.metaTags = [{
@@ -35,6 +65,7 @@ categoriesController.list = async function (req, res) {
 	await Promise.all([
 		categories.getRecentTopicReplies(categoryData, req.uid, req.query),
 		categories.setUnread(tree, pageCids.concat(childCids), req.uid),
+		categories.calculateVisibleCounts(tree, req.uid),
 	]);
 
 	const data = {
@@ -44,12 +75,19 @@ categoriesController.list = async function (req, res) {
 		pagination: pagination.create(page, pageCount, req.query),
 	};
 
-	data.categories.forEach((category) => {
-		if (category) {
-			helpers.trimChildren(category);
-			helpers.setCategoryTeaser(category);
+	
+	await Promise.all(data.categories.map(async (category) => {
+		helpers.trimChildren(category);
+		helpers.setCategoryTeaser(category);
+		await maskTeaserIfAnonymous(req, category);
+
+		if (Array.isArray(category.children) && category.children.length) {
+			await Promise.all(category.children.map(async (child) => {
+				helpers.setCategoryTeaser(child);
+				await maskTeaserIfAnonymous(req, child);
+			}));
 		}
-	});
+	}));
 
 	if (req.originalUrl.startsWith(`${nconf.get('relative_path')}/api/categories`) || req.originalUrl.startsWith(`${nconf.get('relative_path')}/categories`)) {
 		data.title = '[[pages:categories]]';

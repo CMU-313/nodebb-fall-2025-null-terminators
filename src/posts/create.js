@@ -28,7 +28,15 @@ module.exports = function (Posts) {
 		}
 
 		const pid = data.pid || await db.incrObjectField('global', 'nextPid');
-		let postData = { pid, uid, tid, content, sourceContent, timestamp };
+
+		// Validate and set visibility
+		const validatedVisibleTo = await validateVisibleTo(data.visibleTo, uid);
+
+		let postData = {
+			pid, uid, tid, content, sourceContent, timestamp,
+			visibleTo: JSON.stringify(validatedVisibleTo),
+			anonymous: !!data.anonymous,
+		};
 
 		if (data.toPid) {
 			postData.toPid = data.toPid;
@@ -66,6 +74,7 @@ module.exports = function (Posts) {
 		}
 
 		({ post: postData } = await plugins.hooks.fire('filter:post.create', { post: postData, data: data }));
+
 		await db.setObject(`post:${postData.pid}`, postData);
 
 		const topicData = await topics.getTopicFields(tid, ['cid', 'pinned']);
@@ -84,6 +93,7 @@ module.exports = function (Posts) {
 
 		const result = await plugins.hooks.fire('filter:post.get', { post: postData, uid: data.uid });
 		result.post.isMain = isMain;
+
 		plugins.hooks.fire('action:post.save', { post: { ...result.post, _activitypub } });
 		return result.post;
 	};
@@ -111,5 +121,29 @@ module.exports = function (Posts) {
 		if (!toPidExists || (toPost.deleted && !canViewToPid)) {
 			throw new Error('[[error:invalid-pid]]');
 		}
+	}
+
+	async function validateVisibleTo(visibleTo, uid) {
+		// If post is public, no validation needed
+		if (!visibleTo || !Array.isArray(visibleTo) || visibleTo.includes('all')) {
+			return ['all'];
+		}
+
+		// Guests can only create public posts
+		if (parseInt(uid, 10) === 0) {
+			throw new Error('[[error:guests-cant-create-restricted-posts]]');
+		}
+
+		// Validate that all specified groups exist
+		const groupsExist = await groups.exists(visibleTo);
+
+		const invalidGroups = visibleTo.filter((groupName, index) =>
+			groupName !== 'all' && !groupsExist[index]);
+
+		if (invalidGroups.length > 0) {
+			throw new Error(`[[error:groups-do-not-exist, ${invalidGroups.join(', ')}]]`);
+		}
+
+		return visibleTo;
 	}
 };

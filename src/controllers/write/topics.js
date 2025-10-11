@@ -220,3 +220,8 @@ Topics.move = async (req, res) => {
 
 	helpers.formatApiResponse(200, res);
 };
+
+Topics.getByDate = async (req, res) => {
+	const payload = await api.topics.getTopicsByDate(req, req.query);
+	helpers.formatApiResponse(200, res, payload);
+};

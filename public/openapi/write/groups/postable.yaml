@@ -1,0 +1,43 @@
+get:
+  tags:
+    - groups
+  summary: get postable groups
+  description: This operation returns a list of groups that can be used for post visibility control. These are groups that posts can be restricted to.
+  responses:
+    '200':
+      description: postable groups successfully retrieved
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../components/schemas/Status.yaml#/Status
+              response:
+                type: object
+                properties:
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: The internal name of the group
+                          example: 'administrators'
+                        displayName:
+                          type: string
+                          description: The display name of the group
+                          example: 'Administrators'
+                        slug:
+                          type: string
+                          description: URL-safe version of the group name
+                          example: 'administrators'
+                        memberCount:
+                          type: number
+                          description: Number of members in the group
+                          example: 5
+                        description:
+                          type: string
+                          description: Group description
+                          example: 'Site administrators'

@@ -100,6 +100,8 @@ paths:
     $ref: 'write/users/uid/exports/type.yaml'
   /groups/:
     $ref: 'write/groups.yaml'
+  /groups/postable:
+    $ref: 'write/groups/postable.yaml'
   /groups/{slug}:
     $ref: 'write/groups/slug.yaml'
   /groups/{slug}/members:
@@ -168,6 +170,8 @@ paths:
     $ref: 'write/topics/tid/bump.yaml'
   /topics/{tid}/move:
     $ref: 'write/topics/tid/move.yaml'
+  /topics/date:
+    $ref: 'write/topics/date.yaml'
   /tags/{tag}/follow:
     $ref: 'write/tags/tag/follow.yaml'
   /posts/{pid}:

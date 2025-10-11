@@ -1,0 +1,68 @@
+get:
+  tags:
+    - topics
+  summary: Get topics by date
+  description: Retrieve topics created on a specific date within a category
+  parameters:
+    - name: date
+      in: query
+      required: true
+      description: Date in YYYY-MM-DD format
+      schema:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+      example: '2025-10-08'
+    - name: cid
+      in: query
+      required: true
+      description: Category ID
+      schema:
+        type: integer
+      example: 2
+  responses:
+    '200':
+      description: Topics retrieved successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../components/schemas/Status.yaml#/Status
+              response:
+                type: array
+                items:
+                  $ref: ../../components/schemas/TopicObject.yaml#/TopicObject
+    '400':
+      description: Invalid date format or missing parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../components/schemas/Status.yaml#/Status
+              response:
+                type: object
+    '403':
+      description: No privileges to access category
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../components/schemas/Status.yaml#/Status
+              response:
+                type: object
+    '404':
+      description: Category not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                $ref: ../../components/schemas/Status.yaml#/Status
+              response:
+                type: object
