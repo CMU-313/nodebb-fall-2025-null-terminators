@@ -2,7 +2,6 @@
 <!-- IF isDateFiltered -->
 <div class="alert alert-info mb-2 d-flex align-items-center justify-content-between">
 	<span><i class="fa fa-calendar me-2"></i>Showing topics from {selectedDate}</span>
-	<a href="{config.relative_path}/category/{cid}/{slug}" class="btn btn-sm btn-outline-secondary">Clear Filter</a>
 </div>
 <!-- ENDIF isDateFiltered -->
 

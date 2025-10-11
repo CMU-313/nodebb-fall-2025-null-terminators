@@ -28,7 +28,6 @@ const validSorts = [
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
-	console.log(req.query);
 	const { month, day, year } = req.query;
 
 	// Convert to dateFilter if exists
@@ -146,7 +145,6 @@ categoryController.get = async function (req, res, next) {
 				cid: cid,
 			});
             
-			console.log('Filtered topics count:', filteredTopics.length);
             
 			// Apply pagination to filtered results
 			const paginatedTopics = filteredTopics.slice(start, stop + 1);
