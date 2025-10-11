@@ -45,11 +45,17 @@
 	to the category template file directly. It has a placeholder currently for the path
 	that will be used from the backend -->
 <div class="search-inline d-flex align-items-center">
-	<form action="{config.relative_path}/search" method="get" class="d-flex w-100" role="search">
-		<input name="query" type="search" class="form-control" placeholder="[[global:search]]" aria-label="[[search:type-to-search]]" autocomplete="off" />
+	<form action="{config.relative_path}" method="get" class="d-flex w-100" role="search">
+		<input name="search_term" type="search" class="form-control" placeholder="[[global:search]]" aria-label="[[search:type-to-search]]" autocomplete="off" />
 		<button type="submit" class="btn btn-outline-secondary ms-2">[[global:search]]</button>
 	</form>
 </div>
+
+{{{ if search_term }}}
+<div class="alert alert-info" style="margin-bottom: 0px;">
+    Currently Searching for: <strong>{search_term}</strong>
+</div>
+{{{ end }}}
 
 <div class="row flex-fill mt-3">
 	<div class="category d-flex flex-column {{{if widgets.sidebar.length }}}col-lg-9 col-sm-12{{{ else }}}col-lg-12{{{ end }}}">
