@@ -28,6 +28,8 @@ const validSorts = [
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
+	const searchTerm = req.query.search_term;
+
 	if (cid === '-1') {
 		return helpers.redirect(res, `${res.locals.isAPI ? '/api' : ''}/world?${qs.stringify(req.query)}`);
 	}
@@ -106,6 +108,17 @@ categoryController.get = async function (req, res, next) {
 	});
 	if (!categoryData) {
 		return next();
+	}
+
+	// Return search term to template if exists, otherwise null
+	categoryData.search_term = searchTerm || null;
+
+	// Run search to return only matched topics when search term is present
+	if (searchTerm) {
+		const searchResults = await topics.searchInCategory(searchTerm, cid, req.uid);
+		// Slicing array of results for pagination - get first page (from Copilot)
+		categoryData.topics = searchResults.slice(start, stop + 1);
+		categoryData.topic_count = searchResults.length;
 	}
 
 	if (topicIndex > Math.max(categoryData.topic_count - 1, 0)) {

@@ -24,6 +24,13 @@ get:
       schema:
         type: string
       example: 1
+    - name: search_term
+      description: Optional search term to search for matching topics in the category.
+      in: query
+      required: false
+      schema:
+        type: string
+      example: test
   responses:
     "200":
       description: ""
@@ -95,6 +102,9 @@ get:
                         type: boolean
                       isAdminOrMod:
                         type: boolean
+                  search_term:
+                    type: string
+                    nullable: true
                   showSelect:
                     type: boolean
                   showTopicTools:
