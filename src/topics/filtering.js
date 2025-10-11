@@ -27,8 +27,8 @@ module.exports = function (Topics) {
 		}
 
 		// Convert date to timestamp range
-		const startTimestamp = new Date(`${date}T00:00:00Z`).getTime();
-		const endTimestamp = new Date(`${date}T23:59:59Z`).getTime();
+		const startTimestamp = new Date(`${date}T00:00:00`).getTime();
+		const endTimestamp = new Date(`${date}T23:59:59`).getTime();
 
 		const categoryTids = await db.getSortedSetMembers(`cid:${cid}:tids`);
 		const allTidsInRange = await db.getSortedSetRangeByScore(
