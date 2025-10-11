@@ -51,6 +51,25 @@
 	</form>
 </div>
 
+<!-- This is the container that the button opens with 3 text inputs.
+					Initial skeleton from copilot was a button opening a button and adapted it to be 3 text inputs.
+					Help with alignment was also done with the help of copilot to manually align the container to the 
+					bar in nodebb -->							
+<div id="date-filter-container" class="border rounded bg-light p-0 m-0" style="display: none; height: 30px;">
+		<div class="input-group input-group-sm align-items-center">
+        		<input type="text" class="form-control" style = "width: 70px;" placeholder="Month" aria-label="Month Input">
+				<input type="text" class="form-control" style = "width: 70px;" placeholder="Day" aria-label="Day Input">
+				<input type="text" class="form-control" style = "width: 70px;" placeholder="Year" aria-label="Year Input">
+				<button class="btn btn-primary" type="button" id="submit-date-filter">Submit</button>
+    	</div>
+</div>
+
+{{{ if temp_var_for_date_filter }}}
+<div class="alert alert-info" style="margin-bottom: 0px;">
+    Currently Searching with Date: <strong>Month/Day/Year</strong>
+</div>
+{{{ end }}}
+
 <div class="row flex-fill mt-3">
 	<div class="category d-flex flex-column {{{if widgets.sidebar.length }}}col-lg-9 col-sm-12{{{ else }}}col-lg-12{{{ end }}}">
 		<!-- IMPORT partials/category/subcategory.tpl -->
