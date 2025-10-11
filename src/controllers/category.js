@@ -28,6 +28,32 @@ const validSorts = [
 
 categoryController.get = async function (req, res, next) {
 	let cid = req.params.category_id;
+	const { month, day, year } = req.query;
+
+	// Convert to dateFilter if exists
+	let dateFilter = null;
+	if (month && day && year) {
+		const monthNum = parseInt(month, 10);
+		const dayNum = parseInt(day, 10);
+		const yearNum = parseInt(year, 10);
+
+		// Validate values
+		if (monthNum >= 1 && monthNum <= 12 && 
+            dayNum >= 1 && dayNum <= 31 && 
+            yearNum >= 1900 && yearNum <= 2100) {
+			// Filter in YYYY-MM-DD format for helper method
+			dateFilter = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${dayNum.toString().padStart(2, '0')}`;
+
+			// Edge Case: Validate the date actually exists
+			const testDate = new Date(dateFilter);
+			if (testDate.toISOString().slice(0, 10) !== dateFilter) {
+				return next(new Error('Invalid date provided'));
+			}
+		} else {
+			return next(new Error('Invalid date components provided'));
+		}
+	}
+
 	const searchTerm = req.query.search_term;
 
 	if (cid === '-1') {
@@ -106,8 +132,40 @@ categoryController.get = async function (req, res, next) {
 		tag: req.query.tag,
 		targetUid: targetUid,
 	});
+
 	if (!categoryData) {
 		return next();
+	}
+
+	if (dateFilter) {
+		try {
+			// Get basic category data first
+			const filteredTopics = await topics.getTopicsByDate({
+				date: dateFilter,
+				uid: req.uid,
+				cid: cid,
+			});
+            
+            
+			// Apply pagination to filtered results
+			const paginatedTopics = filteredTopics.slice(start, stop + 1);
+            
+			// Replace the topics with filtered results
+			categoryData.topics = paginatedTopics;
+			categoryData.topic_count = filteredTopics.length;
+			categoryData.isDateFiltered = true;
+			categoryData.selectedDate = dateFilter;
+            
+			// Parse date components for template display
+			categoryData.selectedMonth = parseInt(month, 10);
+			categoryData.selectedDay = parseInt(day, 10);
+			categoryData.selectedYear = parseInt(year, 10);
+            
+			// Update title to show date filter
+			categoryData.title = `${translator.escape(categoryData.name)} - ${dateFilter}`;
+		} catch (err) {
+			return next(err);
+		}
 	}
 
 	// Return search term to template if exists, otherwise null
