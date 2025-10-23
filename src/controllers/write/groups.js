@@ -1,17 +1,25 @@
-'use strict';
+"use strict";
 
-const api = require('../../api');
+const api = require("../../api");
 
-const helpers = require('../helpers');
+const helpers = require("../helpers");
 
 const Groups = module.exports;
 
 Groups.list = async (req, res) => {
-	helpers.formatApiResponse(200, res, await api.groups.list(req, { ...req.query }));
+	helpers.formatApiResponse(
+		200,
+		res,
+		await api.groups.list(req, { ...req.query }),
+	);
 };
 
 Groups.getPostableGroups = async (req, res) => {
-	helpers.formatApiResponse(200, res, await api.groups.getPostableGroups(req, { ...req.query }));
+	helpers.formatApiResponse(
+		200,
+		res,
+		await api.groups.getPostableGroups(req, { ...req.query }),
+	);
 };
 
 Groups.exists = async (req, res) => {
@@ -38,7 +46,11 @@ Groups.delete = async (req, res) => {
 
 Groups.listMembers = async (req, res) => {
 	const { slug } = req.params;
-	helpers.formatApiResponse(200, res, await api.groups.listMembers(req, { ...req.query, slug }));
+	helpers.formatApiResponse(
+		200,
+		res,
+		await api.groups.listMembers(req, { ...req.query, slug }),
+	);
 };
 
 Groups.join = async (req, res) => {

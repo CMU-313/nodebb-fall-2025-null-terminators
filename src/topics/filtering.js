@@ -1,29 +1,33 @@
-'use strict';
+"use strict";
 
-const privileges = require('../privileges');
-const db = require('../database');
+const privileges = require("../privileges");
+const db = require("../database");
 
 module.exports = function (Topics) {
-	Topics.getTopicsByDate = async function ({date, uid, cid}) {
+	Topics.getTopicsByDate = async function ({ date, uid, cid }) {
 		// Check for Valid inputs
 		if (cid === undefined || cid === null) {
-			throw new Error('[[error:invalid-cid]]');
+			throw new Error("[[error:invalid-cid]]");
 		}
 
 		if (uid === undefined || uid === null) {
-			throw new Error('[[error:invalid-uid]]');
+			throw new Error("[[error:invalid-uid]]");
 		}
 
 		// Check for valid date format
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			throw new Error('Invalid date format. Use YYYY-MM-DD.');
+			throw new Error("Invalid date format. Use YYYY-MM-DD.");
 		}
 
 		// Check if user is authorized to read from the category
-		const canRead = await privileges.categories.can('categories:read', cid, uid);
+		const canRead = await privileges.categories.can(
+			"categories:read",
+			cid,
+			uid,
+		);
 
 		if (!canRead) {
-			throw new Error('[[error:no-privileges]]');
+			throw new Error("[[error:no-privileges]]");
 		}
 
 		// Convert date to timestamp range
@@ -32,7 +36,7 @@ module.exports = function (Topics) {
 
 		const categoryTids = await db.getSortedSetMembers(`cid:${cid}:tids`);
 		const allTidsInRange = await db.getSortedSetRangeByScore(
-			'topics:tid',
+			"topics:tid",
 			0,
 			-1,
 			startTimestamp,
@@ -40,12 +44,11 @@ module.exports = function (Topics) {
 		);
 
 		// filter topics to only those in specified category & date range
-		let tids = allTidsInRange.filter(tid => categoryTids.includes(tid));
+		let tids = allTidsInRange.filter((tid) => categoryTids.includes(tid));
 
 		// Topic privelege check
-		tids = await privileges.topics.filterTids('topics:read', tids, uid);
+		tids = await privileges.topics.filterTids("topics:read", tids, uid);
 
 		return await Topics.getTopicsByTids(tids);
-
 	};
 };

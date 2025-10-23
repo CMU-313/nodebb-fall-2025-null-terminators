@@ -1,18 +1,18 @@
-'use strict';
+"use strict";
 
-const nconf = require('nconf');
-const winston = require('winston');
+const nconf = require("nconf");
+const winston = require("winston");
 
-const meta = require('../../meta');
-const user = require('../../user');
-const activitypub = require('../../activitypub');
-const utils = require('../../utils');
-const helpers = require('../helpers');
+const meta = require("../../meta");
+const user = require("../../user");
+const activitypub = require("../../activitypub");
+const utils = require("../../utils");
+const helpers = require("../helpers");
 
 const Controller = module.exports;
 
-Controller.actors = require('./actors');
-Controller.topics = require('./topics');
+Controller.actors = require("./actors");
+Controller.topics = require("./topics");
 
 Controller.fetch = async (req, res, next) => {
 	// Given a `resource` query parameter, attempts to retrieve and parse it
@@ -28,10 +28,10 @@ Controller.fetch = async (req, res, next) => {
 			url: url.href,
 		});
 
-		if (typeof result === 'string') {
+		if (typeof result === "string") {
 			return helpers.redirect(res, result);
 		} else if (result) {
-			const { id, type } = await activitypub.get('uid', req.uid, url.href);
+			const { id, type } = await activitypub.get("uid", req.uid, url.href);
 			switch (true) {
 				case activitypub._constants.acceptedPostTypes.includes(type): {
 					return helpers.redirect(res, `/post/${encodeURIComponent(id)}`);
@@ -39,7 +39,7 @@ Controller.fetch = async (req, res, next) => {
 
 				case activitypub._constants.acceptableActorTypes.has(type): {
 					await activitypub.actors.assert(id);
-					const userslug = await user.getUserField(id, 'userslug');
+					const userslug = await user.getUserField(id, "userslug");
 					return helpers.redirect(res, `/user/${userslug}`);
 				}
 
@@ -59,8 +59,12 @@ Controller.fetch = async (req, res, next) => {
 };
 
 Controller.getFollowing = async (req, res) => {
-	const { followingCount, followingRemoteCount } = await user.getUserFields(req.params.uid, ['followingCount', 'followingRemoteCount']);
-	const totalItems = parseInt(followingCount || 0, 10) + parseInt(followingRemoteCount || 0, 10);
+	const { followingCount, followingRemoteCount } = await user.getUserFields(
+		req.params.uid,
+		["followingCount", "followingRemoteCount"],
+	);
+	const totalItems =
+		parseInt(followingCount || 0, 10) + parseInt(followingRemoteCount || 0, 10);
 
 	const count = totalItems;
 	const collection = await activitypub.helpers.generateCollection({
@@ -68,13 +72,13 @@ Controller.getFollowing = async (req, res) => {
 		count,
 		perPage: 50,
 		page: req.query.page,
-		url: `${nconf.get('url')}/uid/${req.params.uid}/following`,
+		url: `${nconf.get("url")}/uid/${req.params.uid}/following`,
 	});
 
-	if (collection.hasOwnProperty('orderedItems')) {
+	if (collection.hasOwnProperty("orderedItems")) {
 		collection.orderedItems = collection.orderedItems.map(({ uid }) => {
 			if (utils.isNumber(uid)) {
-				return `${nconf.get('url')}/uid/${uid}`;
+				return `${nconf.get("url")}/uid/${uid}`;
 			}
 
 			return uid;
@@ -85,8 +89,12 @@ Controller.getFollowing = async (req, res) => {
 };
 
 Controller.getFollowers = async (req, res) => {
-	const { followerCount, followerRemoteCount } = await user.getUserFields(req.params.uid, ['followerCount', 'followerRemoteCount']);
-	const totalItems = parseInt(followerCount || 0, 10) + parseInt(followerRemoteCount || 0, 10);
+	const { followerCount, followerRemoteCount } = await user.getUserFields(
+		req.params.uid,
+		["followerCount", "followerRemoteCount"],
+	);
+	const totalItems =
+		parseInt(followerCount || 0, 10) + parseInt(followerRemoteCount || 0, 10);
 
 	const count = totalItems;
 	const collection = await activitypub.helpers.generateCollection({
@@ -94,13 +102,13 @@ Controller.getFollowers = async (req, res) => {
 		count,
 		perPage: 50,
 		page: req.query.page,
-		url: `${nconf.get('url')}/uid/${req.params.uid}/followers`,
+		url: `${nconf.get("url")}/uid/${req.params.uid}/followers`,
 	});
 
-	if (collection.hasOwnProperty('orderedItems')) {
+	if (collection.hasOwnProperty("orderedItems")) {
 		collection.orderedItems = collection.orderedItems.map(({ uid }) => {
 			if (utils.isNumber(uid)) {
-				return `${nconf.get('url')}/uid/${uid}`;
+				return `${nconf.get("url")}/uid/${uid}`;
 			}
 
 			return uid;
@@ -113,8 +121,8 @@ Controller.getFollowers = async (req, res) => {
 Controller.getOutbox = async (req, res) => {
 	// stub
 	res.status(200).json({
-		'@context': 'https://www.w3.org/ns/activitystreams',
-		type: 'OrderedCollection',
+		"@context": "https://www.w3.org/ns/activitystreams",
+		type: "OrderedCollection",
 		totalItems: 0,
 		orderedItems: [],
 	});
@@ -123,8 +131,8 @@ Controller.getOutbox = async (req, res) => {
 Controller.getCategoryOutbox = async (req, res) => {
 	// stub
 	res.status(200).json({
-		'@context': 'https://www.w3.org/ns/activitystreams',
-		type: 'OrderedCollection',
+		"@context": "https://www.w3.org/ns/activitystreams",
+		type: "OrderedCollection",
 		totalItems: 0,
 		orderedItems: [],
 	});
@@ -144,7 +152,9 @@ Controller.postInbox = async (req, res) => {
 	// Note: underlying methods are internal use only, hence no exposure via src/api
 	const method = String(req.body.type).toLowerCase();
 	if (!activitypub.inbox.hasOwnProperty(method)) {
-		winston.warn(`[activitypub/inbox] Received Activity of type ${method} but unable to handle. Ignoring.`);
+		winston.warn(
+			`[activitypub/inbox] Received Activity of type ${method} but unable to handle. Ignoring.`,
+		);
 		return res.sendStatus(200);
 	}
 

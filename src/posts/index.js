@@ -1,37 +1,37 @@
-'use strict';
+"use strict";
 
-const _ = require('lodash');
+const _ = require("lodash");
 
-const db = require('../database');
-const utils = require('../utils');
-const user = require('../user');
-const privileges = require('../privileges');
-const plugins = require('../plugins');
+const db = require("../database");
+const utils = require("../utils");
+const user = require("../user");
+const privileges = require("../privileges");
+const plugins = require("../plugins");
 
 const Posts = module.exports;
 
-require('./data')(Posts);
-require('./create')(Posts);
-require('./delete')(Posts);
-require('./edit')(Posts);
-require('./parse')(Posts);
-require('./user')(Posts);
-require('./topics')(Posts);
-require('./category')(Posts);
-require('./summary')(Posts);
-require('./recent')(Posts);
-require('./tools')(Posts);
-require('./votes')(Posts);
-require('./bookmarks')(Posts);
-require('./queue')(Posts);
-require('./diffs')(Posts);
-require('./uploads')(Posts);
+require("./data")(Posts);
+require("./create")(Posts);
+require("./delete")(Posts);
+require("./edit")(Posts);
+require("./parse")(Posts);
+require("./user")(Posts);
+require("./topics")(Posts);
+require("./category")(Posts);
+require("./summary")(Posts);
+require("./recent")(Posts);
+require("./tools")(Posts);
+require("./votes")(Posts);
+require("./bookmarks")(Posts);
+require("./queue")(Posts);
+require("./diffs")(Posts);
+require("./uploads")(Posts);
 
-Posts.attachments = require('./attachments');
+Posts.attachments = require("./attachments");
 
 Posts.exists = async function (pids) {
 	return await db.exists(
-		Array.isArray(pids) ? pids.map(pid => `post:${pid}`) : `post:${pids}`
+		Array.isArray(pids) ? pids.map((pid) => `post:${pid}`) : `post:${pids}`,
 	);
 };
 
@@ -39,7 +39,11 @@ Posts.getPidsFromSet = async function (set, start, stop, reverse) {
 	if (isNaN(start) || isNaN(stop)) {
 		return [];
 	}
-	return await db[reverse ? 'getSortedSetRevRange' : 'getSortedSetRange'](set, start, stop);
+	return await db[reverse ? "getSortedSetRevRange" : "getSortedSetRange"](
+		set,
+		start,
+		stop,
+	);
 };
 
 Posts.getPostsByPids = async function (pids, uid) {
@@ -53,7 +57,10 @@ Posts.getPostsByPids = async function (pids, uid) {
 	// Filter posts based on visibility
 	posts = await Posts.filterPostsByVisibility(posts, uid);
 
-	const data = await plugins.hooks.fire('filter:post.getPosts', { posts: posts, uid: uid });
+	const data = await plugins.hooks.fire("filter:post.getPosts", {
+		posts: posts,
+		uid: uid,
+	});
 	if (!data || !Array.isArray(data.posts)) {
 		return [];
 	}
@@ -62,15 +69,24 @@ Posts.getPostsByPids = async function (pids, uid) {
 
 Posts.getPostSummariesFromSet = async function (set, uid, start, stop) {
 	let pids = await db.getSortedSetRevRange(set, start, stop);
-	pids = await privileges.posts.filter('topics:read', pids, uid);
-	const posts = await Posts.getPostSummaryByPids(pids, uid, { stripTags: false });
+	pids = await privileges.posts.filter("topics:read", pids, uid);
+	const posts = await Posts.getPostSummaryByPids(pids, uid, {
+		stripTags: false,
+	});
 	return { posts: posts, nextStart: stop + 1 };
 };
 
 Posts.getPidIndex = async function (pid, tid, topicPostSort) {
-	const set = topicPostSort === 'most_votes' ? `tid:${tid}:posts:votes` : `tid:${tid}:posts`;
-	const reverse = topicPostSort === 'newest_to_oldest' || topicPostSort === 'most_votes';
-	const index = await db[reverse ? 'sortedSetRevRank' : 'sortedSetRank'](set, pid);
+	const set =
+		topicPostSort === "most_votes"
+			? `tid:${tid}:posts:votes`
+			: `tid:${tid}:posts`;
+	const reverse =
+		topicPostSort === "newest_to_oldest" || topicPostSort === "most_votes";
+	const index = await db[reverse ? "sortedSetRevRank" : "sortedSetRank"](
+		set,
+		pid,
+	);
 	if (!utils.isNumber(index)) {
 		return 0;
 	}
@@ -82,7 +98,7 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 		return posts;
 	}
 
-	const groups = require('../groups');
+	const groups = require("../groups");
 
 	// Get user's groups if user is logged in
 	let userGroups = [];
@@ -92,15 +108,15 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 
 		// Extract group names from group objects (some groups return objects, others strings)
 		userGroups = userGroups.map((group) => {
-			if (typeof group === 'object' && group.name) {
+			if (typeof group === "object" && group.name) {
 				return group.name;
 			}
 			return group;
 		});
 
-		userGroups.push('registered-users'); // All logged-in users are in this group
+		userGroups.push("registered-users"); // All logged-in users are in this group
 	}
-	userGroups.push('all'); // Everyone can see 'all' posts
+	userGroups.push("all"); // Everyone can see 'all' posts
 
 	const filteredPosts = posts.filter((post) => {
 		if (!post || !post.visibleTo) {
@@ -110,14 +126,16 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 
 		let visibleTo;
 		try {
-			visibleTo = Array.isArray(post.visibleTo) ? post.visibleTo : JSON.parse(post.visibleTo);
+			visibleTo = Array.isArray(post.visibleTo)
+				? post.visibleTo
+				: JSON.parse(post.visibleTo);
 		} catch (e) {
 			// If parsing fails, assume it's public
 			return true;
 		}
 
 		// Check if post is public
-		if (visibleTo.includes('all')) {
+		if (visibleTo.includes("all")) {
 			return true;
 		}
 
@@ -127,7 +145,7 @@ Posts.filterPostsByVisibility = async function (posts, uid) {
 		}
 
 		// Check if user has access to any of the required groups
-		const hasAccess = visibleTo.some(group => userGroups.includes(group));
+		const hasAccess = visibleTo.some((group) => userGroups.includes(group));
 
 		return hasAccess;
 	});
@@ -141,29 +159,39 @@ Posts.getPostIndices = async function (posts, uid) {
 	}
 	const settings = await user.getSettings(uid);
 
-	const byVotes = settings.topicPostSort === 'most_votes';
-	let sets = posts.map(p => (byVotes ? `tid:${p.tid}:posts:votes` : `tid:${p.tid}:posts`));
-	const reverse = settings.topicPostSort === 'newest_to_oldest' || settings.topicPostSort === 'most_votes';
+	const byVotes = settings.topicPostSort === "most_votes";
+	let sets = posts.map((p) =>
+		byVotes ? `tid:${p.tid}:posts:votes` : `tid:${p.tid}:posts`,
+	);
+	const reverse =
+		settings.topicPostSort === "newest_to_oldest" ||
+		settings.topicPostSort === "most_votes";
 
 	const uniqueSets = _.uniq(sets);
-	let method = reverse ? 'sortedSetsRevRanks' : 'sortedSetsRanks';
+	let method = reverse ? "sortedSetsRevRanks" : "sortedSetsRanks";
 	if (uniqueSets.length === 1) {
-		method = reverse ? 'sortedSetRevRanks' : 'sortedSetRanks';
+		method = reverse ? "sortedSetRevRanks" : "sortedSetRanks";
 		sets = uniqueSets[0];
 	}
 
-	const pids = posts.map(post => post.pid);
+	const pids = posts.map((post) => post.pid);
 	const indices = await db[method](sets, pids);
-	return indices.map(index => (utils.isNumber(index) ? parseInt(index, 10) + 1 : 0));
+	return indices.map((index) =>
+		utils.isNumber(index) ? parseInt(index, 10) + 1 : 0,
+	);
 };
 
 Posts.modifyPostByPrivilege = function (post, privileges) {
-	if (post && post.deleted && !(post.selfPost || privileges['posts:view_deleted'])) {
-		post.content = '[[topic:post-is-deleted]]';
+	if (
+		post &&
+		post.deleted &&
+		!(post.selfPost || privileges["posts:view_deleted"])
+	) {
+		post.content = "[[topic:post-is-deleted]]";
 		if (post.user) {
-			post.user.signature = '';
+			post.user.signature = "";
 		}
 	}
 };
 
-require('../promisify')(Posts);
+require("../promisify")(Posts);
