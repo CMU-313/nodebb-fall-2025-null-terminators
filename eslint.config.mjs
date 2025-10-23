@@ -3,7 +3,7 @@
 import serverConfig from "eslint-config-nodebb";
 import publicConfig from "eslint-config-nodebb/public";
 import commonRules from "eslint-config-nodebb/common";
-import eslintConfigPrettier from "eslint-config-prettier/flat";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 import { defineConfig } from "eslint/config";
 import stylisticJs from "@stylistic/eslint-plugin-js";
