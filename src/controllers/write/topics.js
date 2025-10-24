@@ -1,25 +1,25 @@
-'use strict';
+"use strict";
 
-const db = require('../../database');
-const api = require('../../api');
-const topics = require('../../topics');
+const db = require("../../database");
+const api = require("../../api");
+const topics = require("../../topics");
 
-const helpers = require('../helpers');
-const middleware = require('../../middleware');
-const uploadsController = require('../uploads');
+const helpers = require("../helpers");
+const middleware = require("../../middleware");
+const uploadsController = require("../uploads");
 
 const Topics = module.exports;
 
 Topics.get = async (req, res) => {
 	const topicData = await api.topics.get(req, req.params);
 	if (!topicData) {
-		return helpers.formatApiResponse(404, res, new Error('[[error:no-topic]]'));
+		return helpers.formatApiResponse(404, res, new Error("[[error:no-topic]]"));
 	}
 	helpers.formatApiResponse(200, res, topicData);
 };
 
 Topics.create = async (req, res) => {
-	const id = await lockPosting(req, '[[error:already-posting]]');
+	const id = await lockPosting(req, "[[error:already-posting]]");
 	try {
 		const payload = await api.topics.create(req, req.body);
 		if (payload.queued) {
@@ -28,24 +28,27 @@ Topics.create = async (req, res) => {
 			helpers.formatApiResponse(200, res, payload);
 		}
 	} finally {
-		await db.deleteObjectField('locks', id);
+		await db.deleteObjectField("locks", id);
 	}
 };
 
 Topics.reply = async (req, res) => {
-	const id = await lockPosting(req, '[[error:already-posting]]');
+	const id = await lockPosting(req, "[[error:already-posting]]");
 	try {
-		const payload = await api.topics.reply(req, { ...req.body, tid: req.params.tid });
+		const payload = await api.topics.reply(req, {
+			...req.body,
+			tid: req.params.tid,
+		});
 		helpers.formatApiResponse(200, res, payload);
 	} finally {
-		await db.deleteObjectField('locks', id);
+		await db.deleteObjectField("locks", id);
 	}
 };
 
 async function lockPosting(req, error) {
 	const id = req.uid > 0 ? req.uid : req.sessionID;
 	const value = `posting${id}`;
-	const count = await db.incrObjectField('locks', value);
+	const count = await db.incrObjectField("locks", value);
 	if (count > 1) {
 		throw new Error(error);
 	}
@@ -129,23 +132,32 @@ Topics.deleteTags = async (req, res) => {
 Topics.getThumbs = async (req, res) => {
 	let { thumbsOnly } = req.query;
 	thumbsOnly = thumbsOnly ? !!parseInt(thumbsOnly, 10) : false;
-	helpers.formatApiResponse(200, res, await api.topics.getThumbs(req, { ...req.params, thumbsOnly }));
+	helpers.formatApiResponse(
+		200,
+		res,
+		await api.topics.getThumbs(req, { ...req.params, thumbsOnly }),
+	);
 };
 
 Topics.addThumb = async (req, res) => {
 	// todo: move controller logic to src/api/topics.js
-	await api.topics._checkThumbPrivileges({ tid: req.params.tid, uid: req.user.uid });
+	await api.topics._checkThumbPrivileges({
+		tid: req.params.tid,
+		uid: req.user.uid,
+	});
 
 	const files = await uploadsController.uploadThumb(req, res); // response is handled here
 
 	// Add uploaded files to topic zset
 	if (files && files.length) {
-		await Promise.all(files.map(async (fileObj) => {
-			await topics.thumbs.associate({
-				id: req.params.tid,
-				path: fileObj.url,
-			});
-		}));
+		await Promise.all(
+			files.map(async (fileObj) => {
+				await topics.thumbs.associate({
+					id: req.params.tid,
+					path: fileObj.url,
+				});
+			}),
+		);
 	}
 };
 
@@ -155,11 +167,15 @@ Topics.migrateThumbs = async (req, res) => {
 		to: req.body.tid,
 	});
 
-	helpers.formatApiResponse(200, res, await api.topics.getThumbs(req, { tid: req.body.tid }));
+	helpers.formatApiResponse(
+		200,
+		res,
+		await api.topics.getThumbs(req, { tid: req.body.tid }),
+	);
 };
 
 Topics.deleteThumb = async (req, res) => {
-	if (!req.body.path.startsWith('http')) {
+	if (!req.body.path.startsWith("http")) {
 		await middleware.assert.path(req, res, () => {});
 		if (res.headersSent) {
 			return;

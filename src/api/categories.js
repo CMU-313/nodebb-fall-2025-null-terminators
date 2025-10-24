@@ -1,49 +1,60 @@
-'use strict';
+"use strict";
 
-const meta = require('../meta');
-const categories = require('../categories');
-const topics = require('../topics');
-const events = require('../events');
-const user = require('../user');
-const groups = require('../groups');
-const privileges = require('../privileges');
-const utils = require('../utils');
-const Posts = require('../posts');
+const meta = require("../meta");
+const categories = require("../categories");
+const topics = require("../topics");
+const events = require("../events");
+const user = require("../user");
+const groups = require("../groups");
+const privileges = require("../privileges");
+const utils = require("../utils");
+const Posts = require("../posts");
 
-const activitypubApi = require('./activitypub');
+const activitypubApi = require("./activitypub");
 
 const categoriesAPI = module.exports;
 
 // Mask authors shown on a category card if the underlying post was anonymous
 
 async function maskTopicUsersIfAnonymous(caller, topic) {
-	if (!topic) return { maskedMain: false, maskedTeaser: false, maskedLast: false, reason: 'no-topic' };
+	if (!topic)
+		return {
+			maskedMain: false,
+			maskedTeaser: false,
+			maskedLast: false,
+			reason: "no-topic",
+		};
 
 	// Returns a masked user object when the post is anonymous and should be masked,
 	// otherwise returns false. This avoids creating a local user object that is not
 	// attached back to the topic structure.
 	async function checkAndMaskByPid(pid) {
 		if (!pid) return false;
-		const row = await Posts.getPostFields(pid, ['anonymous', 'uid', 'pid']);
-		const isAnon = row && (row.anonymous === true || row.anonymous === 'true');
+		const row = await Posts.getPostFields(pid, ["anonymous", "uid", "pid"]);
+		const isAnon = row && (row.anonymous === true || row.anonymous === "true");
 		if (!isAnon) return false;
 		// owners/mods still see identity (use parseInt on both sides to avoid type mismatch)
-		const isOwner = caller.uid && parseInt(caller.uid, 10) === parseInt(row.uid, 10);
-		const canModerate = await privileges.posts.can('posts:moderate', row.pid, caller.uid);
+		const isOwner =
+			caller.uid && parseInt(caller.uid, 10) === parseInt(row.uid, 10);
+		const canModerate = await privileges.posts.can(
+			"posts:moderate",
+			row.pid,
+			caller.uid,
+		);
 		if (isOwner || canModerate) return false;
 
 		// Build and return a fresh masked user object (do not mutate input object)
 		const masked = {
 			uid: 0,
-			username: 'Anonymous',
-			'username:escaped': 'Anonymous',
-			displayname: 'Anonymous',
-			'displayname:escaped': 'Anonymous',
+			username: "Anonymous",
+			"username:escaped": "Anonymous",
+			displayname: "Anonymous",
+			"displayname:escaped": "Anonymous",
 			userslug: null,
-			'userslug:escaped': '',
+			"userslug:escaped": "",
 			picture: null,
-			'icon:text': 'A',
-			'icon:bgColor': '#888',
+			"icon:text": "A",
+			"icon:bgColor": "#888",
 		};
 		return masked;
 	}
@@ -55,7 +66,10 @@ async function maskTopicUsersIfAnonymous(caller, topic) {
 	const mainMasked = await checkAndMaskByPid(mainPid, topic.user);
 	if (mainMasked) topic.user = mainMasked;
 
-	const teaserMasked = await checkAndMaskByPid(teaserPid, topic.teaser && topic.teaser.user);
+	const teaserMasked = await checkAndMaskByPid(
+		teaserPid,
+		topic.teaser && topic.teaser.user,
+	);
 	if (teaserMasked) {
 		if (!topic.teaser) topic.teaser = {};
 		topic.teaser.user = teaserMasked;
@@ -63,7 +77,10 @@ async function maskTopicUsersIfAnonymous(caller, topic) {
 		topic.teaser.anonymous = true;
 	}
 
-	const lastMasked = await checkAndMaskByPid(lastPid, topic.lastpost && topic.lastpost.user);
+	const lastMasked = await checkAndMaskByPid(
+		lastPid,
+		topic.lastpost && topic.lastpost.user,
+	);
 	if (lastMasked) {
 		if (topic.lastpost) topic.lastpost.user = lastMasked;
 		if (topic.lastpost) topic.lastpost.anonymous = true;
@@ -73,21 +90,24 @@ async function maskTopicUsersIfAnonymous(caller, topic) {
 		maskedMain: !!mainMasked,
 		maskedTeaser: !!teaserMasked,
 		maskedLast: !!lastMasked,
-		reason: (!mainPid && !teaserPid && !lastPid) ? 'no-pids' : undefined,
+		reason: !mainPid && !teaserPid && !lastPid ? "no-pids" : undefined,
 	};
 }
 
-
-const hasAdminPrivilege = async (uid, privilege = 'categories') => {
+const hasAdminPrivilege = async (uid, privilege = "categories") => {
 	const ok = await privileges.admin.can(`admin:${privilege}`, uid);
 	if (!ok) {
-		throw new Error('[[error:no-privileges]]');
+		throw new Error("[[error:no-privileges]]");
 	}
 };
 
 categoriesAPI.list = async (caller) => {
 	async function getCategories() {
-		const cids = await categories.getCidsByPrivilege('categories:cid', caller.uid, 'find');
+		const cids = await categories.getCidsByPrivilege(
+			"categories:cid",
+			caller.uid,
+			"find",
+		);
 		return await categories.getCategoriesData(cids);
 	}
 
@@ -97,7 +117,9 @@ categoriesAPI.list = async (caller) => {
 	]);
 
 	return {
-		categories: categoriesData.filter(category => category && (!category.disabled || isAdmin)),
+		categories: categoriesData.filter(
+			(category) => category && (!category.disabled || isAdmin),
+		),
 	};
 };
 
@@ -124,7 +146,7 @@ categoriesAPI.create = async function (caller, data) {
 categoriesAPI.update = async function (caller, data) {
 	await hasAdminPrivilege(caller.uid);
 	if (!data) {
-		throw new Error('[[error:invalid-data]]');
+		throw new Error("[[error:invalid-data]]");
 	}
 	const { cid, values } = data;
 
@@ -137,10 +159,10 @@ categoriesAPI.update = async function (caller, data) {
 categoriesAPI.delete = async function (caller, { cid }) {
 	await hasAdminPrivilege(caller.uid);
 
-	const name = await categories.getCategoryField(cid, 'name');
+	const name = await categories.getCategoryField(cid, "name");
 	await categories.purge(cid, caller.uid);
 	await events.log({
-		type: 'category-purge',
+		type: "category-purge",
 		uid: caller.uid,
 		ip: caller.ip,
 		cid: cid,
@@ -149,15 +171,16 @@ categoriesAPI.delete = async function (caller, { cid }) {
 };
 
 categoriesAPI.getTopicCount = async (caller, { cid }) => {
-	const allowed = await privileges.categories.can('find', cid, caller.uid);
+	const allowed = await privileges.categories.can("find", cid, caller.uid);
 	if (!allowed) {
-		throw new Error('[[error:no-privileges]]');
+		throw new Error("[[error:no-privileges]]");
 	}
-	const count = await categories.getCategoryField(cid, 'topic_count');
+	const count = await categories.getCategoryField(cid, "topic_count");
 	return { count };
 };
 
-categoriesAPI.getPosts = async (caller, { cid }) => await categories.getRecentReplies(cid, caller.uid, 0, 4);
+categoriesAPI.getPosts = async (caller, { cid }) =>
+	await categories.getRecentReplies(cid, caller.uid, 0, 4);
 
 categoriesAPI.getChildren = async (caller, { cid, start }) => {
 	if (!start || start < 0) {
@@ -165,9 +188,9 @@ categoriesAPI.getChildren = async (caller, { cid, start }) => {
 	}
 	start = parseInt(start, 10);
 
-	const allowed = await privileges.categories.can('read', cid, caller.uid);
+	const allowed = await privileges.categories.can("read", cid, caller.uid);
 	if (!allowed) {
-		throw new Error('[[error:no-privileges]]');
+		throw new Error("[[error:no-privileges]]");
 	}
 
 	const category = await categories.getCategoryData(cid);
@@ -176,7 +199,10 @@ categoriesAPI.getChildren = async (caller, { cid, start }) => {
 	categories.flattenCategories(allCategories, category.children);
 	await categories.getRecentTopicReplies(allCategories, caller.uid);
 
-	const payload = category.children.slice(start, start + category.subCategoriesPerPage);
+	const payload = category.children.slice(
+		start,
+		start + category.subCategoriesPerPage,
+	);
 	return { categories: payload };
 };
 
@@ -189,11 +215,15 @@ categoriesAPI.getTopics = async (caller, data) => {
 	]);
 
 	if (!userPrivileges.read) {
-		throw new Error('[[error:no-privileges]]');
+		throw new Error("[[error:no-privileges]]");
 	}
 
 	const infScrollTopicsPerPage = 20;
-	const sort = data.sort || data.categoryTopicSort || meta.config.categoryTopicSort || 'recently_replied';
+	const sort =
+		data.sort ||
+		data.categoryTopicSort ||
+		meta.config.categoryTopicSort ||
+		"recently_replied";
 
 	let start = Math.max(0, parseInt(data.after || 0, 10));
 
@@ -224,9 +254,9 @@ categoriesAPI.getTopics = async (caller, data) => {
 	categories.modifyTopicsByPrivilege(result.topics, userPrivileges);
 
 	// Ensure each topic has mainPid so we can check the main post
-	const tids = (result.topics || []).map(t => t && t.tid).filter(Boolean);
+	const tids = (result.topics || []).map((t) => t && t.tid).filter(Boolean);
 	if (tids.length) {
-		const mainRows = await topics.getTopicsFields(tids, ['mainPid']);
+		const mainRows = await topics.getTopicsFields(tids, ["mainPid"]);
 		result.topics.forEach((t, i) => {
 			if (t && !t.mainPid) t.mainPid = mainRows[i] && mainRows[i].mainPid;
 		});
@@ -234,9 +264,10 @@ categoriesAPI.getTopics = async (caller, data) => {
 
 	// generated by ChatGPT
 	// Mask topic owner / teaser / lastpost
-	
-	await Promise.all((result.topics || []).map(t => maskTopicUsersIfAnonymous(caller, t)));
-	
+
+	await Promise.all(
+		(result.topics || []).map((t) => maskTopicUsersIfAnonymous(caller, t)),
+	);
 
 	// Return shape that always includes `topics`
 	return {
@@ -248,23 +279,27 @@ categoriesAPI.getTopics = async (caller, data) => {
 	};
 };
 
-
 categoriesAPI.setWatchState = async (caller, { cid, state, uid }) => {
 	let targetUid = caller.uid;
 	let cids = Array.isArray(cid) ? cid : [cid];
-	cids = cids.map(cid => (utils.isNumber(cid) ? parseInt(cid, 10) : cid));
+	cids = cids.map((cid) => (utils.isNumber(cid) ? parseInt(cid, 10) : cid));
 
 	if (uid) {
 		targetUid = uid;
 	}
 	await user.isAdminOrGlobalModOrSelf(caller.uid, targetUid);
-	const allCids = await categories.getAllCidsFromSet('categories:cid');
-	const categoryData = await categories.getCategoriesFields(allCids, ['cid', 'parentCid']);
+	const allCids = await categories.getAllCidsFromSet("categories:cid");
+	const categoryData = await categories.getCategoriesFields(allCids, [
+		"cid",
+		"parentCid",
+	]);
 
 	// filter to subcategories of cid
 	let cat;
 	do {
-		cat = categoryData.find(c => !cids.includes(c.cid) && cids.includes(c.parentCid));
+		cat = categoryData.find(
+			(c) => !cids.includes(c.cid) && cids.includes(c.parentCid),
+		);
 		if (cat) {
 			cids.push(cat.cid);
 		}
@@ -277,11 +312,11 @@ categoriesAPI.setWatchState = async (caller, { cid, state, uid }) => {
 };
 
 categoriesAPI.getPrivileges = async (caller, { cid }) => {
-	await hasAdminPrivilege(caller.uid, 'privileges');
+	await hasAdminPrivilege(caller.uid, "privileges");
 
 	let responsePayload;
 
-	if (cid === 'admin') {
+	if (cid === "admin") {
 		responsePayload = await privileges.admin.list(caller.uid);
 	} else if (!parseInt(cid, 10)) {
 		responsePayload = await privileges.global.list();
@@ -293,7 +328,7 @@ categoriesAPI.getPrivileges = async (caller, { cid }) => {
 };
 
 categoriesAPI.setPrivilege = async (caller, data) => {
-	await hasAdminPrivilege(caller.uid, 'privileges');
+	await hasAdminPrivilege(caller.uid, "privileges");
 
 	const [userExists, groupExists] = await Promise.all([
 		user.exists(data.member),
@@ -301,44 +336,53 @@ categoriesAPI.setPrivilege = async (caller, data) => {
 	]);
 
 	if (!userExists && !groupExists) {
-		throw new Error('[[error:no-user-or-group]]');
+		throw new Error("[[error:no-user-or-group]]");
 	}
-	const privs = Array.isArray(data.privilege) ? data.privilege : [data.privilege];
-	const type = data.set ? 'give' : 'rescind';
+	const privs = Array.isArray(data.privilege)
+		? data.privilege
+		: [data.privilege];
+	const type = data.set ? "give" : "rescind";
 	if (!privs.length) {
-		throw new Error('[[error:invalid-data]]');
+		throw new Error("[[error:invalid-data]]");
 	}
 	if (parseInt(data.cid, 10) === 0) {
 		const adminPrivList = await privileges.admin.getPrivilegeList();
-		const adminPrivs = privs.filter(priv => adminPrivList.includes(priv));
+		const adminPrivs = privs.filter((priv) => adminPrivList.includes(priv));
 		if (adminPrivs.length) {
 			await privileges.admin[type](adminPrivs, data.member);
 		}
 		const globalPrivList = await privileges.global.getPrivilegeList();
-		const globalPrivs = privs.filter(priv => globalPrivList.includes(priv));
+		const globalPrivs = privs.filter((priv) => globalPrivList.includes(priv));
 		if (globalPrivs.length) {
 			await privileges.global[type](globalPrivs, data.member);
 		}
 	} else {
 		const categoryPrivList = await privileges.categories.getPrivilegeList();
-		const categoryPrivs = privs.filter(priv => categoryPrivList.includes(priv));
+		const categoryPrivs = privs.filter((priv) =>
+			categoryPrivList.includes(priv),
+		);
 		await privileges.categories[type](categoryPrivs, data.cid, data.member);
 	}
 
 	await events.log({
 		uid: caller.uid,
-		type: 'privilege-change',
+		type: "privilege-change",
 		ip: caller.ip,
 		privilege: data.privilege.toString(),
 		cid: data.cid,
-		action: data.set ? 'grant' : 'rescind',
+		action: data.set ? "grant" : "rescind",
 		target: data.member,
 	});
 };
 
 categoriesAPI.setModerator = async (caller, { cid, member, set }) => {
-	await hasAdminPrivilege(caller.uid, 'admins-mods');
+	await hasAdminPrivilege(caller.uid, "admins-mods");
 
 	const privilegeList = await privileges.categories.getUserPrivilegeList();
-	await categoriesAPI.setPrivilege(caller, { cid, privilege: privilegeList, member, set });
+	await categoriesAPI.setPrivilege(caller, {
+		cid,
+		privilege: privilegeList,
+		member,
+		set,
+	});
 };
