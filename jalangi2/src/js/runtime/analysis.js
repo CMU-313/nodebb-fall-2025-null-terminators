@@ -122,8 +122,8 @@ if (typeof J$ === 'undefined') {
         var a = [];
         for (var i = 0; i < args.length; i++)
             a[i] = 'args[' + i + ']';
-        var eval = EVAL_ORG;
-        return eval('new Constructor(' + a.join() + ')');
+        var myEval = eval;
+        return myEval('new Constructor(' + a.join() + ')');
     }
 
     function callAsNativeConstructor(Constructor, args) {
