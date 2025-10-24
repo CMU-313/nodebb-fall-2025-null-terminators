@@ -1,6 +1,10 @@
+
+> nodebb@4.4.6 security-scan
+> retire --path . --outputformat json | jq
+
 {
   "version": "5.3.0",
-  "start": "2025-10-24T02:14:28.691Z",
+  "start": "2025-10-24T02:37:56.857Z",
   "data": [
     {
       "file": "/workspaces/nodebb-fall-2025-null-terminators/node_modules/gaze/lib/helper.js",
@@ -285,5 +289,5 @@
   ],
   "messages": [],
   "errors": [],
-  "time": 38.9
+  "time": 33.584
 }
