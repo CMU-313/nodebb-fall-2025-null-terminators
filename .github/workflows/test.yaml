@@ -90,3 +90,6 @@ jobs:
 
       - name: Test coverage
         uses: coverallsapp/github-action@v2
+
+      - name: Security Scan
+        uses: npm run security-scan
