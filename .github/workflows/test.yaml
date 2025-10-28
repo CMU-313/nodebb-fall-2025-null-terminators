@@ -92,4 +92,4 @@ jobs:
         uses: coverallsapp/github-action@v2
 
       - name: Security Scan
-        uses: npm run security-scan
+        run: npm run security-scan
