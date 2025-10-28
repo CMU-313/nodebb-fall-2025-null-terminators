@@ -362,3 +362,7 @@ Filter with no inputs to see if that causes issues.
 
 **Why you believe the tests are sufficient**
 I believe that the tests are sufficient, as knowing that bad inputs won’t cause issues through testing with NodeBB, we can focus on making sure that the functionality of the date filtering is good. These tests check to see if the backend function is getting the topics correctly by date and not getting ones unrelated, which is the primary function of the date filter button. These tests also account for new categories to make sure that each category comes with a functioning date filtering button.
+
+## Deployed Application
+
+Access the live deployment at: [`http://17313-team21.s3d.cmu.edu:4567/`](http://17313-team21.s3d.cmu.edu:4567/)
